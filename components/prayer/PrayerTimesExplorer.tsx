@@ -233,7 +233,7 @@ export function PrayerTimesExplorer() {
   return (
     <div className="space-y-8">
       {/* Page Title & Quick Controls */}
-      <div className="rounded-3xl border border-border bg-card p-6 shadow-soft sm:p-8">
+      <div className="rounded-3xl border border-border bg-card p-4 shadow-soft sm:p-6 md:p-8">
         <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3.5 py-1 text-xs font-bold text-primary">
@@ -523,11 +523,11 @@ export function PrayerTimesExplorer() {
       )}
 
       {/* View Switcher Tabs: Day | Week | Month */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4">
         <div
           role="tablist"
           aria-label="طريقة عرض مواقيت الصلاة"
-          className="inline-flex rounded-2xl border border-border bg-card p-1.5 shadow-sm"
+          className="grid w-full grid-cols-3 gap-1 rounded-2xl border border-border bg-card p-1.5 shadow-sm sm:inline-flex sm:w-auto"
         >
           <button
             type="button"
@@ -535,14 +535,15 @@ export function PrayerTimesExplorer() {
             aria-selected={viewMode === "day"}
             onClick={() => setViewMode("day")}
             className={cn(
-              "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-all",
+              "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-2 py-2 text-xs font-bold transition-all sm:gap-2 sm:px-4 sm:text-sm",
               viewMode === "day"
                 ? "bg-primary text-primary-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            <Clock className="h-4 w-4" />
-            <span>مواقيت اليوم</span>
+            <Clock className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+            <span className="sm:hidden">اليوم</span>
+            <span className="hidden sm:inline">مواقيت اليوم</span>
           </button>
 
           <button
@@ -551,14 +552,15 @@ export function PrayerTimesExplorer() {
             aria-selected={viewMode === "week"}
             onClick={() => setViewMode("week")}
             className={cn(
-              "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-all",
+              "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-2 py-2 text-xs font-bold transition-all sm:gap-2 sm:px-4 sm:text-sm",
               viewMode === "week"
                 ? "bg-primary text-primary-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            <CalendarRange className="h-4 w-4" />
-            <span>مواقيت الأسبوع (٧ أيام)</span>
+            <CalendarRange className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+            <span className="sm:hidden">الأسبوع</span>
+            <span className="hidden sm:inline">مواقيت الأسبوع (٧ أيام)</span>
           </button>
 
           <button
@@ -567,45 +569,48 @@ export function PrayerTimesExplorer() {
             aria-selected={viewMode === "month"}
             onClick={() => setViewMode("month")}
             className={cn(
-              "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-all",
+              "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-2 py-2 text-xs font-bold transition-all sm:gap-2 sm:px-4 sm:text-sm",
               viewMode === "month"
                 ? "bg-primary text-primary-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            <CalendarDays className="h-4 w-4" />
-            <span>جدول الشهر كاملًا</span>
+            <CalendarDays className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+            <span className="sm:hidden">الشهر</span>
+            <span className="hidden sm:inline">جدول الشهر كاملًا</span>
           </button>
         </div>
 
         {viewMode === "month" && (
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => handleMonthChange(-1)}
-              aria-label="الشهر السابق"
-              className="rounded-xl border border-border bg-card p-2 text-foreground hover:bg-muted"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-            <span className="min-w-[140px] text-center text-sm font-bold text-foreground">
-              {GREGORIAN_MONTHS_AR[selectedMonth]} {toArabicDigits(selectedYear)} م
-            </span>
-            <button
-              type="button"
-              onClick={() => handleMonthChange(1)}
-              aria-label="الشهر التالي"
-              className="rounded-xl border border-border bg-card p-2 text-foreground hover:bg-muted"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
+          <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleMonthChange(-1)}
+                aria-label="الشهر السابق"
+                className="rounded-xl border border-border bg-card p-2 text-foreground hover:bg-muted"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+              <span className="min-w-[125px] text-center text-xs font-bold text-foreground sm:min-w-[140px] sm:text-sm">
+                {GREGORIAN_MONTHS_AR[selectedMonth]} {toArabicDigits(selectedYear)} م
+              </span>
+              <button
+                type="button"
+                onClick={() => handleMonthChange(1)}
+                aria-label="الشهر التالي"
+                className="rounded-xl border border-border bg-card p-2 text-foreground hover:bg-muted"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+            </div>
             <button
               type="button"
               onClick={() => typeof window !== "undefined" && window.print()}
               className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-bold text-foreground hover:bg-muted"
             >
               <Printer className="h-4 w-4 text-primary" />
-              <span className="hidden sm:inline">طباعة الإمساكية</span>
+              <span>طباعة</span>
             </button>
           </div>
         )}
@@ -698,19 +703,87 @@ export function PrayerTimesExplorer() {
         </div>
       )}
 
-      {/* VIEW 2 & 3: Weekly / Monthly Timetable */}
+      {/* VIEW 2 & 3: Weekly / Monthly Timetable — Mobile App Cards (No Horizontal Scroll) + Desktop Table */}
       {(viewMode === "week" || viewMode === "month") && (
         <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-soft">
-          <div className="border-b border-border bg-muted/40 px-6 py-4">
-            <h2 className="text-lg font-bold text-foreground">
+          <div className="border-b border-border bg-muted/40 px-4 py-3.5 sm:px-6 sm:py-4">
+            <h2 className="text-sm font-bold text-foreground sm:text-lg">
               {viewMode === "week"
                 ? `مواقيت الصلاة لمدة ٧ أيام في ${location.cityNameAr} (${location.governorateNameAr})`
                 : `إمساكية وجدول مواقيت الصلاة لشهر ${GREGORIAN_MONTHS_AR[selectedMonth]} ${toArabicDigits(selectedYear)} م — ${location.cityNameAr}`}
             </h2>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-right text-sm">
+          {/* Mobile App Day-by-Day Cards (Zero Horizontal Scroll) */}
+          <div className="divide-y divide-border/70 md:hidden">
+            {(viewMode === "week" ? weeklySchedules : monthlySchedules).map(
+              (daySched) => {
+                const isToday = daySched.dateKey === todayKey;
+                return (
+                  <div
+                    key={daySched.dateKey}
+                    className={cn(
+                      "p-3.5 transition-colors",
+                      isToday ? "bg-primary/10" : "bg-card"
+                    )}
+                  >
+                    <div className="mb-2.5 flex flex-wrap items-center justify-between gap-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-extrabold text-foreground">
+                          {daySched.gregorianFormatted}
+                        </span>
+                        {isToday && (
+                          <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground">
+                            اليوم
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[11px] font-bold text-primary">
+                        {daySched.hijriFormatted}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {daySched.entries.map((entry) => (
+                        <div
+                          key={entry.id}
+                          className={cn(
+                            "flex flex-col items-center justify-center rounded-xl border px-2 py-1.5 text-center",
+                            !entry.isObligatory
+                              ? "border-gold/30 bg-gold-muted/30"
+                              : isToday
+                              ? "border-primary/25 bg-card"
+                              : "border-border/70 bg-background/70"
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "text-[10px] font-bold",
+                              !entry.isObligatory ? "text-gold" : "text-muted-foreground"
+                            )}
+                          >
+                            {entry.nameAr}
+                          </span>
+                          <span
+                            className={cn(
+                              "mt-0.5 text-xs font-extrabold",
+                              !entry.isObligatory ? "text-gold" : "text-foreground"
+                            )}
+                          >
+                            {entry.formattedTime12}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+            )}
+          </div>
+
+          {/* Desktop & Tablet Full Table */}
+          <div className="hidden md:block">
+            <table className="w-full text-right text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/60 text-xs font-bold text-muted-foreground">
                   <th className="px-4 py-3.5">التاريخ الميلادي</th>

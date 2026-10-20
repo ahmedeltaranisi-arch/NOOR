@@ -219,7 +219,7 @@ export function AdhkarExplorerClient({
   return (
     <div className="space-y-8">
       {/* Header Banner */}
-      <div className="rounded-3xl border border-border bg-card p-6 shadow-soft sm:p-8">
+      <div className="rounded-3xl border border-border bg-card p-4 shadow-soft sm:p-6 md:p-8">
         <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3.5 py-1 text-xs font-bold text-primary">
@@ -548,7 +548,7 @@ export function AdhkarExplorerClient({
                 key={item.id}
                 id={`dhikr-card-${item.id}`}
                 className={cn(
-                  "scroll-mt-24 rounded-3xl border p-6 transition-all",
+                  "scroll-mt-24 rounded-3xl border p-4 transition-all sm:p-6",
                   isDone
                     ? "border-emerald-500/40 bg-emerald-500/5"
                     : "border-border bg-card shadow-soft"

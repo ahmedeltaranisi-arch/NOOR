@@ -90,20 +90,20 @@ export function LocationSelectorModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="location-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 backdrop-blur-sm sm:p-4"
     >
-      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-2xl">
+      <div className="flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-6 py-4">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3.5 sm:px-6 sm:py-4">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary sm:h-10 sm:w-10">
               <MapPin className="h-5 w-5" />
             </div>
-            <div>
-              <h2 id="location-modal-title" className="text-lg font-bold text-foreground">
+            <div className="min-w-0">
+              <h2 id="location-modal-title" className="truncate text-sm font-bold text-foreground sm:text-lg">
                 اختيار المحافظة والمدينة (جميع محافظات مصر الـ 27)
               </h2>
-              <p className="text-xs text-muted-foreground">
+              <p className="truncate text-[11px] text-muted-foreground sm:text-xs">
                 تُحسب مواقيت الصلاة واتجاه القبلة بدقة فلكية وفق إحداثيات المدينة المختارة
               </p>
             </div>
@@ -112,14 +112,14 @@ export function LocationSelectorModal({
             type="button"
             onClick={onClose}
             aria-label="إغلاق نافذة اختيار الموقع"
-            className="rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="shrink-0 rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Search & GPS Bar */}
-        <div className="space-y-3 border-b border-border bg-muted/30 px-6 py-4">
+        <div className="space-y-3 border-b border-border bg-muted/30 px-4 py-3.5 sm:px-6 sm:py-4">
           <div className="flex flex-col gap-2.5 sm:flex-row">
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

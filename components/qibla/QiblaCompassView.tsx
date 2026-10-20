@@ -193,11 +193,11 @@ export function QiblaCompassView() {
       {/* Main Compass & Metrics Grid */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         {/* Interactive Compass Dial */}
-        <div className="flex flex-col items-center justify-between rounded-3xl border border-border bg-card p-6 shadow-soft lg:col-span-7 sm:p-8">
+        <div className="flex flex-col items-center justify-between rounded-3xl border border-border bg-card p-4 shadow-soft sm:p-6 md:p-8 lg:col-span-7">
           <div className="flex w-full flex-wrap items-center justify-between gap-2">
             <span
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs font-bold",
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold sm:px-3.5",
                 isAligned
                   ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
                   : "bg-muted text-muted-foreground"
@@ -223,9 +223,9 @@ export function QiblaCompassView() {
             <button
               type="button"
               onClick={startCompassSensor}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 px-3.5 py-1.5 text-xs font-bold text-primary transition hover:bg-primary hover:text-primary-foreground"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary transition hover:bg-primary hover:text-primary-foreground sm:px-3.5"
             >
-              <Smartphone className="h-4 w-4" />
+              <Smartphone className="h-4 w-4 shrink-0" />
               <span>
                 {sensorStatus === "active" && deviceHeading !== null
                   ? "مستشعر البوصلة نشط"
@@ -234,8 +234,8 @@ export function QiblaCompassView() {
             </button>
           </div>
 
-          {/* Large SVG Compass */}
-          <div className="relative my-8 flex h-72 w-72 items-center justify-center sm:h-80 sm:w-80">
+          {/* Large SVG Compass — Responsive down to 320px */}
+          <div className="relative my-6 flex h-60 w-60 items-center justify-center min-[380px]:h-64 min-[380px]:w-64 sm:my-8 sm:h-80 sm:w-80">
             {/* Outer Alignment Halo */}
             <div
               className={cn(
@@ -258,39 +258,39 @@ export function QiblaCompassView() {
 
             {/* Rotating Compass Plate */}
             <div
-              className="relative flex h-64 w-64 items-center justify-center rounded-full border-2 border-border bg-background shadow-inner transition-transform duration-300 sm:h-72 sm:w-72"
+              className="relative flex h-52 w-52 items-center justify-center rounded-full border-2 border-border bg-background shadow-inner transition-transform duration-300 min-[380px]:h-56 min-[380px]:w-56 sm:h-72 sm:w-72"
               style={{ transform: `rotate(${-effectiveHeading}deg)` }}
             >
               {/* Cardinal Directions */}
-              <div className="absolute top-3 flex flex-col items-center">
-                <span className="text-sm font-extrabold text-primary">شمال</span>
-                <span className="text-[10px] font-bold text-muted-foreground">0° N</span>
+              <div className="absolute top-2.5 flex flex-col items-center sm:top-3">
+                <span className="text-xs font-extrabold text-primary sm:text-sm">شمال</span>
+                <span className="text-[9px] font-bold text-muted-foreground sm:text-[10px]">0° N</span>
               </div>
-              <div className="absolute bottom-3 flex flex-col items-center">
-                <span className="text-[10px] font-bold text-muted-foreground">180° S</span>
-                <span className="text-xs font-bold text-foreground">جنوب</span>
+              <div className="absolute bottom-2.5 flex flex-col items-center sm:bottom-3">
+                <span className="text-[9px] font-bold text-muted-foreground sm:text-[10px]">180° S</span>
+                <span className="text-[11px] font-bold text-foreground sm:text-xs">جنوب</span>
               </div>
-              <div className="absolute right-3 flex flex-col items-center">
-                <span className="text-xs font-bold text-foreground">شرق</span>
-                <span className="text-[10px] font-bold text-muted-foreground">90° E</span>
+              <div className="absolute right-2.5 flex flex-col items-center sm:right-3">
+                <span className="text-[11px] font-bold text-foreground sm:text-xs">شرق</span>
+                <span className="text-[9px] font-bold text-muted-foreground sm:text-[10px]">90° E</span>
               </div>
-              <div className="absolute left-3 flex flex-col items-center">
-                <span className="text-xs font-bold text-foreground">غرب</span>
-                <span className="text-[10px] font-bold text-muted-foreground">270° W</span>
+              <div className="absolute left-2.5 flex flex-col items-center sm:left-3">
+                <span className="text-[11px] font-bold text-foreground sm:text-xs">غرب</span>
+                <span className="text-[9px] font-bold text-muted-foreground sm:text-[10px]">270° W</span>
               </div>
 
               {/* Inner Degree Circle */}
-              <div className="h-44 w-44 rounded-full border border-dashed border-border/80 sm:h-52 sm:w-52" />
+              <div className="h-36 w-36 rounded-full border border-dashed border-border/80 min-[380px]:h-40 min-[380px]:w-40 sm:h-52 sm:w-52" />
 
               {/* Qibla Vector Arrow inside Compass Plate */}
               <div
                 className="absolute inset-0 flex items-center justify-center"
                 style={{ transform: `rotate(${qibla.bearingDegrees}deg)` }}
               >
-                <div className="flex h-52 flex-col items-center justify-start sm:h-60">
+                <div className="flex h-44 flex-col items-center justify-start min-[380px]:h-48 sm:h-60">
                   <div
                     className={cn(
-                      "flex h-10 w-10 -translate-y-1 items-center justify-center rounded-2xl text-base shadow-lg ring-2 transition-all",
+                      "flex h-9 w-9 -translate-y-1 items-center justify-center rounded-2xl text-sm shadow-lg ring-2 transition-all sm:h-10 sm:w-10 sm:text-base",
                       isAligned
                         ? "bg-emerald-600 text-white ring-emerald-300 scale-110"
                         : "bg-emerald-950 text-gold ring-gold"
@@ -299,12 +299,12 @@ export function QiblaCompassView() {
                   >
                     🕋
                   </div>
-                  <div className="h-20 w-1.5 rounded-full bg-gradient-to-b from-gold via-primary to-transparent" />
+                  <div className="h-16 w-1.5 rounded-full bg-gradient-to-b from-gold via-primary to-transparent sm:h-20" />
                 </div>
               </div>
 
               {/* Center Pivot */}
-              <div className="z-10 flex h-12 w-12 items-center justify-center rounded-full border-2 border-border bg-card text-xs font-extrabold text-foreground shadow">
+              <div className="z-10 flex h-11 w-11 items-center justify-center rounded-full border-2 border-border bg-card text-[11px] font-extrabold text-foreground shadow sm:h-12 sm:w-12 sm:text-xs">
                 {toArabicDigits(Math.round(qibla.bearingDegrees))}°
               </div>
             </div>

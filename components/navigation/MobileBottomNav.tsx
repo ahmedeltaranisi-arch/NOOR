@@ -138,12 +138,12 @@ export function MobileBottomNav() {
         </div>
       )}
 
-      {/* Fixed Bottom Bar */}
+      {/* Fixed Bottom Bar — Native Mobile App Navigation with Safe Area support */}
       <nav
         aria-label="شريط التنقل السفلي"
-        className="fixed bottom-0 left-0 right-0 z-40 border-t border-border/90 bg-card/95 backdrop-blur-lg lg:hidden"
+        className="fixed bottom-0 left-0 right-0 z-40 border-t border-border/90 bg-card/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_20px_rgba(0,0,0,0.06)] backdrop-blur-lg lg:hidden"
       >
-        <div className="mx-auto grid h-16 max-w-lg grid-cols-5 items-center px-2">
+        <div className="mx-auto grid h-16 max-w-lg grid-cols-5 items-center px-1.5">
           {MAIN_MOBILE_TABS.map((tab) => {
             const Icon = tab.icon;
             const isActive =
@@ -155,7 +155,7 @@ export function MobileBottomNav() {
                 href={tab.href}
                 onClick={() => setDrawerOpen(false)}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1 rounded-xl py-1.5 text-xs font-semibold transition-colors",
+                  "flex flex-col items-center justify-center gap-1 rounded-xl py-1 text-[11px] font-bold transition-all active:scale-95",
                   isActive
                     ? "text-primary"
                     : "text-muted-foreground hover:text-foreground"
@@ -163,13 +163,13 @@ export function MobileBottomNav() {
               >
                 <div
                   className={cn(
-                    "flex h-7 w-12 items-center justify-center rounded-full transition-colors",
+                    "flex h-7 w-11 items-center justify-center rounded-full transition-colors",
                     isActive ? "bg-primary/15" : "bg-transparent"
                   )}
                 >
                   <Icon className="h-4 w-4" />
                 </div>
-                <span>{tab.label}</span>
+                <span className="truncate">{tab.label}</span>
               </Link>
             );
           })}
@@ -179,7 +179,7 @@ export function MobileBottomNav() {
             onClick={() => setDrawerOpen((prev) => !prev)}
             aria-expanded={drawerOpen}
             className={cn(
-              "flex flex-col items-center justify-center gap-1 rounded-xl py-1.5 text-xs font-semibold transition-colors",
+              "flex flex-col items-center justify-center gap-1 rounded-xl py-1 text-[11px] font-bold transition-all active:scale-95",
               drawerOpen || isMoreActive
                 ? "text-primary"
                 : "text-muted-foreground hover:text-foreground"
@@ -187,13 +187,13 @@ export function MobileBottomNav() {
           >
             <div
               className={cn(
-                "flex h-7 w-12 items-center justify-center rounded-full transition-colors",
+                "flex h-7 w-11 items-center justify-center rounded-full transition-colors",
                 drawerOpen || isMoreActive ? "bg-primary/15" : "bg-transparent"
               )}
             >
               <LayoutGrid className="h-4 w-4" />
             </div>
-            <span>المزيد</span>
+            <span className="truncate">المزيد</span>
           </button>
         </div>
       </nav>

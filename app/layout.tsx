@@ -77,6 +77,8 @@ export const viewport: Viewport = {
   ],
   width: "device-width",
   initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
 };
 
 const themeInitScript = `
@@ -108,7 +110,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body className="flex min-h-screen flex-col bg-background font-sans text-foreground">
+      <body className="flex min-h-screen w-full max-w-[100vw] flex-col overflow-x-hidden bg-background font-sans text-foreground">
         <ThemeProvider>
           <a
             href="#main-content"
@@ -117,7 +119,10 @@ export default function RootLayout({
             تخطي إلى المحتوى الرئيسي
           </a>
           <Header />
-          <main id="main-content" className="mx-auto w-full max-w-7xl flex-1 px-4 pt-6 sm:px-6 lg:px-8">
+          <main
+            id="main-content"
+            className="mx-auto w-full max-w-7xl flex-1 overflow-x-hidden px-3.5 pt-4 sm:px-6 sm:pt-6 lg:px-8"
+          >
             {children}
           </main>
           <Footer />

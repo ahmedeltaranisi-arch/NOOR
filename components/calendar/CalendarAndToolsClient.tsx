@@ -196,47 +196,50 @@ export function CalendarAndToolsClient() {
           </div>
 
           {/* Section Switcher Tabs */}
-          <div className="grid grid-cols-3 gap-1.5 rounded-2xl border border-border bg-muted/60 p-1.5 sm:flex sm:flex-wrap">
+          <div className="grid w-full grid-cols-3 gap-1 rounded-2xl border border-border bg-muted/60 p-1.5 sm:inline-flex sm:w-auto sm:flex-wrap sm:gap-1.5">
             <button
               type="button"
               onClick={() => setActiveTab("calendar")}
               className={cn(
-                "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-2 text-xs font-bold transition sm:px-4",
+                "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-2 py-2 text-xs font-bold transition sm:px-4",
                 activeTab === "calendar"
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
               <CalendarIcon className="h-3.5 w-3.5 shrink-0" />
-              <span>التقويم والمناسبات</span>
+              <span className="sm:hidden">التقويم</span>
+              <span className="hidden sm:inline">التقويم والمناسبات</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab("names")}
               className={cn(
-                "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-2 text-xs font-bold transition sm:px-4",
+                "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-2 py-2 text-xs font-bold transition sm:px-4",
                 activeTab === "names"
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
               <Sparkles className="h-3.5 w-3.5 shrink-0" />
-              <span>أسماء الله الحسنى</span>
+              <span className="sm:hidden">أسماء الله</span>
+              <span className="hidden sm:inline">أسماء الله الحسنى</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab("zakat")}
               className={cn(
-                "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-2 text-xs font-bold transition sm:px-4",
+                "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-2 py-2 text-xs font-bold transition sm:px-4",
                 activeTab === "zakat"
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
               <Calculator className="h-3.5 w-3.5 shrink-0" />
-              <span>حاسبة الزكاة</span>
+              <span className="sm:hidden">الزكاة</span>
+              <span className="hidden sm:inline">حاسبة الزكاة</span>
             </button>
           </div>
         </div>
