@@ -1,0 +1,213 @@
+import { describe, expect, it } from "vitest";
+import {
+  EGYPT_GOVERNORATES,
+  findNearestEgyptianCity,
+  getCityByIds,
+} from "@/data/egypt-governorates";
+import {
+  calculateDailyPrayerSchedule,
+  calculateMonthlyPrayerSchedules,
+  DEFAULT_CALCULATION_SETTINGS,
+} from "@/lib/prayer-times";
+import { calculateQiblaInfo, getShortestAngleDifference } from "@/lib/qibla";
+import { getSurahDetailById, searchQuranVerses, SURAHS_META } from "@/lib/quran";
+import { getHijriDateInfo, normalizeArabicText } from "@/lib/utils";
+import { ALLAH_NAMES } from "@/data/daily-content";
+import { ADHKAR_CATEGORIES, ADHKAR_DATA } from "@/data/adhkar";
+
+describe("1. المحافظات المصرية الـ 27 وتحديد الموقع", () => {
+  it("يدعم جميع محافظات جمهورية مصر العربية الـ 27 كاملة مع مدنها وإحداثياتها", () => {
+    expect(EGYPT_GOVERNORATES.length).toBe(27);
+
+    const requiredGovNames = [
+      "القاهرة",
+      "الجيزة",
+      "الإسكندرية",
+      "الدقهلية",
+      "دمياط",
+      "الشرقية",
+      "الغربية",
+      "المنوفية",
+      "القليوبية",
+      "كفر الشيخ",
+      "البحيرة",
+      "الإسماعيلية",
+      "السويس",
+      "بورسعيد",
+      "شمال سيناء",
+      "جنوب سيناء",
+      "البحر الأحمر",
+      "الفيوم",
+      "بني سويف",
+      "المنيا",
+      "أسيوط",
+      "سوهاج",
+      "قنا",
+      "الأقصر",
+      "أسوان",
+      "الوادي الجديد",
+      "مطروح",
+    ];
+
+    const actualNames = EGYPT_GOVERNORATES.map((g) => g.nameAr);
+    for (const name of requiredGovNames) {
+      expect(actualNames).toContain(name);
+    }
+
+    for (const gov of EGYPT_GOVERNORATES) {
+      expect(gov.cities.length).toBeGreaterThanOrEqual(4);
+      for (const city of gov.cities) {
+        expect(city.latitude).toBeGreaterThan(21.5);
+        expect(city.latitude).toBeLessThan(32.0);
+        expect(city.longitude).toBeGreaterThan(24.5);
+        expect(city.longitude).toBeLessThan(37.0);
+      }
+    }
+  });
+
+  it("يحدد أقرب مدينة مصرية بدقة من الإحداثيات الجغرافية (دمياط والقاهرة)", () => {
+    const damiettaLoc = findNearestEgyptianCity(31.4175, 31.8144);
+    expect(damiettaLoc.governorateId).toBe("damietta");
+    expect(damiettaLoc.governorateNameAr).toBe("دمياط");
+
+    const cairoLoc = findNearestEgyptianCity(30.0444, 31.2357);
+    expect(cairoLoc.governorateId).toBe("cairo");
+    expect(cairoLoc.governorateNameAr).toBe("القاهرة");
+  });
+});
+
+describe("2. حسابات مواقيت الصلاة الفلكية (الهيئة المصرية العامة للمساحة)", () => {
+  const testDate = new Date("2026-10-20T10:00:00Z");
+
+  it("يحسب الصلوات الخمس والشروق بترتيب زمني صحيح", () => {
+    const schedule = calculateDailyPrayerSchedule(
+      30.0444,
+      31.2357,
+      testDate,
+      DEFAULT_CALCULATION_SETTINGS,
+      testDate
+    );
+
+    expect(schedule.fajr.getTime()).toBeLessThan(schedule.sunrise.getTime());
+    expect(schedule.sunrise.getTime()).toBeLessThan(schedule.dhuhr.getTime());
+    expect(schedule.dhuhr.getTime()).toBeLessThan(schedule.asr.getTime());
+    expect(schedule.asr.getTime()).toBeLessThan(schedule.maghrib.getTime());
+    expect(schedule.maghrib.getTime()).toBeLessThan(schedule.isha.getTime());
+  });
+
+  it("تختلف المواقيت باختلاف المدينة داخل المحافظة أو بين المحافظات (القاهرة، الإسكندرية، دمياط، أسوان)", () => {
+    const cairo = calculateDailyPrayerSchedule(30.0444, 31.2357, testDate);
+    const alex = calculateDailyPrayerSchedule(31.2001, 29.9187, testDate);
+    const damietta = calculateDailyPrayerSchedule(31.4175, 31.8144, testDate);
+
+    // Alexandria is west of Cairo, so Dhuhr in Alexandria is later than Cairo
+    expect(alex.dhuhr.getTime()).toBeGreaterThan(cairo.dhuhr.getTime());
+    // Damietta is east of Cairo, so Dhuhr in Damietta is earlier than Cairo
+    expect(damietta.dhuhr.getTime()).toBeLessThan(cairo.dhuhr.getTime());
+
+    // Different cities inside Damietta governorate have distinct coordinates
+    const damiettaCity = getCityByIds("damietta", "ras-el-bar")!;
+    const zarqaCity = getCityByIds("damietta", "zarqa")!;
+    const sched1 = calculateDailyPrayerSchedule(
+      damiettaCity.city.latitude,
+      damiettaCity.city.longitude,
+      testDate
+    );
+    const sched2 = calculateDailyPrayerSchedule(
+      zarqaCity.city.latitude,
+      zarqaCity.city.longitude,
+      testDate
+    );
+    expect(sched1.fajr.getTime()).not.toBe(sched2.fajr.getTime());
+  });
+
+  it("يطبق المذهب الحنفي والفروق الزمنية اليدوية بدقة", () => {
+    const shafiSched = calculateDailyPrayerSchedule(
+      30.0444,
+      31.2357,
+      testDate,
+      DEFAULT_CALCULATION_SETTINGS
+    );
+    const hanafiSched = calculateDailyPrayerSchedule(30.0444, 31.2357, testDate, {
+      ...DEFAULT_CALCULATION_SETTINGS,
+      madhab: "Hanafi",
+    });
+
+    // Hanafi Asr is later than Shafi Asr
+    expect(hanafiSched.asr.getTime()).toBeGreaterThan(shafiSched.asr.getTime());
+
+    // Manual offset +5 minutes on Fajr
+    const adjustedSched = calculateDailyPrayerSchedule(30.0444, 31.2357, testDate, {
+      ...DEFAULT_CALCULATION_SETTINGS,
+      adjustments: {
+        ...DEFAULT_CALCULATION_SETTINGS.adjustments,
+        fajr: 5,
+      },
+    });
+    const diffMinutes = Math.round(
+      (adjustedSched.fajr.getTime() - shafiSched.fajr.getTime()) / 60000
+    );
+    expect(diffMinutes).toBe(5);
+  });
+
+  it("يولد جدول مواقيت الشهر كاملًا بعدد أيام الشهر الصحيح", () => {
+    const octoberSchedules = calculateMonthlyPrayerSchedules(
+      31.4175,
+      31.8144,
+      2026,
+      9 // October (0-indexed)
+    );
+    expect(octoberSchedules.length).toBe(31);
+  });
+});
+
+describe("3. حسابات اتجاه القبلة والمسافة إلى الكعبة المشرفة", () => {
+  it("يحسب زاوية القبلة والمسافة من القاهرة ودمياط وأسوان بدقة", () => {
+    const cairoQibla = calculateQiblaInfo(30.0444, 31.2357);
+    expect(cairoQibla.bearingDegrees).toBeGreaterThan(135);
+    expect(cairoQibla.bearingDegrees).toBeLessThan(137);
+    expect(cairoQibla.distanceKm).toBeGreaterThan(1270);
+    expect(cairoQibla.distanceKm).toBeLessThan(1300);
+    expect(cairoQibla.cardinalDirectionAr).toContain("الجنوب الشرقي");
+
+    const damiettaQibla = calculateQiblaInfo(31.4175, 31.8144);
+    expect(damiettaQibla.bearingDegrees).toBeGreaterThan(141);
+    expect(damiettaQibla.bearingDegrees).toBeLessThan(144);
+
+    expect(getShortestAngleDifference(136, 136)).toBe(0);
+    expect(getShortestAngleDifference(350, 10)).toBe(20);
+  });
+});
+
+describe("4. التقويم الهجري والقرآن الكريم والأذكار وأسماء الله الحسنى", () => {
+  it("يحول التاريخ الميلادي إلى هجري بصورة صحيحة", () => {
+    const hijri = getHijriDateInfo(new Date("2026-10-20T12:00:00Z"));
+    expect(hijri.year).toBeGreaterThanOrEqual(1448);
+    expect(hijri.day).toBeGreaterThanOrEqual(1);
+    expect(hijri.day).toBeLessThanOrEqual(30);
+    expect(hijri.monthNameAr.length).toBeGreaterThan(2);
+  });
+
+  it("يتضمن القرآن الكريم 114 سورة و6236 آية ويدعم البحث بدون تشكيل", () => {
+    expect(SURAHS_META.length).toBe(114);
+    const totalVerses = SURAHS_META.reduce((acc, s) => acc + s.totalVerses, 0);
+    expect(totalVerses).toBe(6236);
+
+    const fatiha = getSurahDetailById(1);
+    expect(fatiha?.name).toBe("الفاتحة");
+    expect(fatiha?.verses.length).toBe(7);
+
+    const results = searchQuranVerses("الكرسي", 10);
+    expect(results.length).toBeGreaterThanOrEqual(1);
+    expect(results[0].surahId).toBe(2);
+    expect(results[0].ayahNumber).toBe(255);
+
+    expect(normalizeArabicText("بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ")).toBe("بسم الله الرحمن");
+  });
+
+  it("يتضمن جميع تصنيفات الأذكار الـ 7 وأسماء الله الحسنى الـ 99", () => {
+    expect(ADHKAR_CATEGORIES.length).toBe(7);
+    expect(ADHKAR_DATA.length).toBeGreaterThanOrEqual(30);
+    expect(ALLAH_NAMES.length).toBe(99);
+  });
+});

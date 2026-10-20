@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Day Mode: Warm Ivory/Alabaster & Islamic Emerald & Muted Gold */
+    --background: 40 33% 97%;
+    --foreground: 160 28% 11%;
+
+    --card: 40 38% 99%;
+    --card-foreground: 160 28% 11%;
+
+    --popover: 40 38% 99%;
+    --popover-foreground: 160 28% 11%;
+
+    --primary: 160 78% 24%;
+    --primary-foreground: 40 33% 98%;
+
+    --secondary: 40 26% 92%;
+    --secondary-foreground: 160 40% 16%;
+
+    --muted: 40 22% 93%;
+    --muted-foreground: 160 14% 38%;
+
+    --accent: 40 45% 91%;
+    --accent-foreground: 160 65% 20%;
+
+    --gold: 38 56% 48%;
+    --gold-foreground: 40 33% 99%;
+    --gold-muted: 40 55% 92%;
+
+    --border: 38 22% 86%;
+    --input: 38 22% 86%;
+    --ring: 160 78% 24%;
+  }
+
+  .dark {
+    /* Night Mode: Deep Serene Emerald-Slate & Luminous Emerald & Soft Gold */
+    --background: 162 32% 6%;
+    --foreground: 40 25% 94%;
+
+    --card: 162 28% 10%;
+    --card-foreground: 40 25% 94%;
+
+    --popover: 162 28% 10%;
+    --popover-foreground: 40 25% 94%;
+
+    --primary: 158 64% 42%;
+    --primary-foreground: 162 35% 7%;
+
+    --secondary: 162 24% 15%;
+    --secondary-foreground: 40 25% 92%;
+
+    --muted: 162 22% 14%;
+    --muted-foreground: 160 15% 68%;
+
+    --accent: 162 25% 16%;
+    --accent-foreground: 158 64% 55%;
+
+    --gold: 39 68% 62%;
+    --gold-foreground: 162 35% 8%;
+    --gold-muted: 39 35% 18%;
+
+    --border: 162 22% 18%;
+    --input: 162 22% 18%;
+    --ring: 158 64% 42%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    direction: rtl;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased selection:bg-primary/20 selection:text-primary;
+    background-image: radial-gradient(
+      circle at 85% 10%,
+      hsl(var(--primary) / 0.045) 0%,
+      transparent 40%
+    ),
+    radial-gradient(
+      circle at 15% 85%,
+      hsl(var(--gold) / 0.05) 0%,
+      transparent 40%
+    );
+  }
+}
+
+/* Quranic Text Styling with Tashkeel & Waqf respect */
+.quran-verse-text {
+  font-family: var(--font-amiri-quran), var(--font-amiri), serif;
+  line-height: 2.35;
+  word-spacing: 0.06em;
+  letter-spacing: 0;
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+}
+
+/* Respect prefers-reduced-motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
