@@ -87,64 +87,183 @@ export function savePrayerSettings(settings: PrayerCalculationSettings): void {
 }
 
 // 3. Prayer Notifications & Adhan Audio
-export const ADHAN_VOICES_META: {
+export const ADHAN_AUDIO_STATE_EVENT = "noor:adhan-audio-state";
+
+export interface AdhanVoiceMeta {
   id: AdhanSoundId;
   nameAr: string;
+  titleAr: string;
+  countryAr: string;
+  category: "egypt" | "arab";
   styleAr: string;
   audioUrls: string[];
-}[] = [
+}
+
+export const ADHAN_VOICES_META: AdhanVoiceMeta[] = [
+  // أولا: عمالقة المدرسة المصرية (شيوخ مصر)
   {
     id: "abdulbasit",
     nameAr: "الشيخ عبد الباسط عبد الصمد",
-    styleAr: "أذان مصري خاشع ومؤثر",
-    audioUrls: [
-      "https://www.islamcan.com/audio/adhan/azan1.mp3",
-      "https://cdn.aladhan.com/audio/adhans/a1.mp3",
-    ],
+    titleAr: "صوت مكة والقاهرة الخاشع",
+    countryAr: "مصر",
+    category: "egypt",
+    styleAr: "أذان القاهرة التاريخي الخاشع والمؤثر",
+    audioUrls: ["/audio/adhan/abdulbasit.mp3"],
   },
   {
-    id: "egypt-radio",
-    nameAr: "أذان المدرسة المصرية (إذاعة القرآن الكريم)",
-    styleAr: "مقام الراست المصري الأصيل",
-    audioUrls: [
-      "https://www.islamcan.com/audio/adhan/azan6.mp3",
-      "https://www.islamcan.com/audio/adhan/azan1.mp3",
-    ],
+    id: "refaat",
+    nameAr: "الشيخ محمد رفعت",
+    titleAr: "قيثارة السماء",
+    countryAr: "مصر",
+    category: "egypt",
+    styleAr: "تسجيل أذان القاهرة التراثي النادر",
+    audioUrls: ["/audio/adhan/refaat.mp3"],
   },
+  {
+    id: "minshawi",
+    nameAr: "الشيخ محمد صديق المنشاوي",
+    titleAr: "الصوت الباكي الخاشع",
+    countryAr: "مصر",
+    category: "egypt",
+    styleAr: "أذان المدرسة المصرية بمقام الراست الأصيل",
+    audioUrls: ["/audio/adhan/minshawi.mp3"],
+  },
+  {
+    id: "hussary",
+    nameAr: "الشيخ محمود خليل الحصري",
+    titleAr: "شيخ عموم المقارئ المصرية",
+    countryAr: "مصر",
+    category: "egypt",
+    styleAr: "أذان إذاعة القرآن الكريم من القاهرة",
+    audioUrls: ["/audio/adhan/hussary.mp3"],
+  },
+  {
+    id: "mustafa-ismail",
+    nameAr: "الشيخ مصطفى إسماعيل",
+    titleAr: "عبقري التلاوة والمقامات",
+    countryAr: "مصر",
+    category: "egypt",
+    styleAr: "أذان مصري أصيل متقن المقامات",
+    audioUrls: ["/audio/adhan/mustafa-ismail.mp3"],
+  },
+  {
+    id: "banna",
+    nameAr: "الشيخ محمود علي البنا",
+    titleAr: "سفير القرآن الكريم",
+    countryAr: "مصر",
+    category: "egypt",
+    styleAr: "أذان القاهرة الإذاعي العذب",
+    audioUrls: ["/audio/adhan/banna.mp3"],
+  },
+  {
+    id: "naqshbandi",
+    nameAr: "الشيخ سيد النقشبندي",
+    titleAr: "إمام المبتهلين",
+    countryAr: "مصر",
+    category: "egypt",
+    styleAr: "أذان مصري روحاني خاشع ومهيب",
+    audioUrls: ["/audio/adhan/naqshbandi.mp3"],
+  },
+  {
+    id: "tobar",
+    nameAr: "الشيخ نصر الدين طوبار",
+    titleAr: "صوت السحر والابتهال",
+    countryAr: "مصر",
+    category: "egypt",
+    styleAr: "أذان مصري شجي نادر من القاهرة",
+    audioUrls: ["/audio/adhan/tobar.mp3"],
+  },
+  {
+    id: "shuaisha",
+    nameAr: "الشيخ أبو العينين شعيشع",
+    titleAr: "نقيب قراء مصر السابق",
+    countryAr: "مصر",
+    category: "egypt",
+    styleAr: "أذان القاهرة الكلاسيكي الرصين",
+    audioUrls: ["/audio/adhan/shuaisha.mp3"],
+  },
+  {
+    id: "nuinaa",
+    nameAr: "الشيخ أحمد نعينع",
+    titleAr: "قارئ المساجد الكبرى بمصر",
+    countryAr: "مصر",
+    category: "egypt",
+    styleAr: "أذان القاهرة النديّ المتقن",
+    audioUrls: ["/audio/adhan/nuinaa.mp3"],
+  },
+  {
+    id: "islam-sobhi",
+    nameAr: "الشيخ إسلام صبحي",
+    titleAr: "القارئ المصري الشاب",
+    countryAr: "مصر",
+    category: "egypt",
+    styleAr: "أذان هادئ شجي يبعث السكينة",
+    audioUrls: ["/audio/adhan/islam-sobhi.mp3"],
+  },
+  // ثانيا: الحرمان الشريفان والمسجد الأقصى والعالم العربي
   {
     id: "makkah",
-    nameAr: "أذان الحرم المكي الشريف (الشيخ علي أحمد ملا)",
-    styleAr: "المسجد الحرام - مكة المكرمة",
-    audioUrls: [
-      "https://www.islamcan.com/audio/adhan/azan2.mp3",
-      "https://cdn.aladhan.com/audio/adhans/a2.mp3",
-    ],
+    nameAr: "الشيخ علي أحمد ملا (الحرم المكي)",
+    titleAr: "شيخ مؤذني المسجد الحرام",
+    countryAr: "مكة المكرمة",
+    category: "arab",
+    styleAr: "أذان المسجد الحرام بمكة المكرمة",
+    audioUrls: ["/audio/adhan/makkah.mp3"],
   },
   {
     id: "madinah",
     nameAr: "أذان المسجد النبوي الشريف",
-    styleAr: "المدينة المنورة",
-    audioUrls: [
-      "https://www.islamcan.com/audio/adhan/azan3.mp3",
-      "https://cdn.aladhan.com/audio/adhans/a3.mp3",
-    ],
+    titleAr: "مؤذنو الحرم النبوي",
+    countryAr: "المدينة المنورة",
+    category: "arab",
+    styleAr: "الأذان المدني الروحاني من الروضة الشريفة",
+    audioUrls: ["/audio/adhan/madinah.mp3"],
+  },
+  {
+    id: "aqsa",
+    nameAr: "أذان المسجد الأقصى المبارك",
+    titleAr: "نداء أولى القبلتين",
+    countryAr: "القدس الشريف",
+    category: "arab",
+    styleAr: "الأذان المقدسي العريق من رحاب الأقصى",
+    audioUrls: ["/audio/adhan/aqsa.mp3"],
   },
   {
     id: "afasy",
     nameAr: "الشيخ مشاري راشد العفاسي",
-    styleAr: "أذان نديّ عذب",
-    audioUrls: [
-      "https://www.islamcan.com/audio/adhan/azan16.mp3",
-      "https://www.islamcan.com/audio/adhan/azan2.mp3",
-    ],
+    titleAr: "إمام المسجد الكبير",
+    countryAr: "الكويت",
+    category: "arab",
+    styleAr: "أذان نديّ عذب فائق النقاء",
+    audioUrls: ["/audio/adhan/afasy.mp3"],
+  },
+  {
+    id: "qatami",
+    nameAr: "الشيخ ناصر القطامي",
+    titleAr: "إمام جامع القاضي بالرياض",
+    countryAr: "السعودية",
+    category: "arab",
+    styleAr: "أذان خاشع ومؤثر",
+    audioUrls: ["/audio/adhan/qatami.mp3"],
   },
   {
     id: "takbeer-only",
-    nameAr: "تكبير صوتي مختصر فقط (بدون أذان كامل)",
-    styleAr: "الله أكبر الله أكبر + تنبيه ناطق",
-    audioUrls: [],
+    nameAr: "تكبير صوتي مختصر (الشيخ عبد الباسط)",
+    titleAr: "تكبير وتشهد بدون أذان كامل",
+    countryAr: "مصر",
+    category: "egypt",
+    styleAr: "اللَّهُ أَكْبَرُ اللَّهُ أَكْبَرُ (٢٥ ثانية فقط)",
+    audioUrls: ["/audio/alerts/takbeer-egypt.mp3"],
   },
 ];
+
+export function getAdhanVoiceMeta(adhanId?: AdhanSoundId): AdhanVoiceMeta {
+  if (!adhanId) return ADHAN_VOICES_META[0];
+  if (adhanId === "egypt-radio") {
+    return ADHAN_VOICES_META.find((a) => a.id === "banna") || ADHAN_VOICES_META[0];
+  }
+  return ADHAN_VOICES_META.find((a) => a.id === adhanId) || ADHAN_VOICES_META[0];
+}
 
 export const DEFAULT_PRAYER_NOTIFICATIONS: PrayerNotificationSettings = {
   masterEnabled: true,
@@ -224,10 +343,38 @@ export function savePrayerNotifications(settings: PrayerNotificationSettings): v
 }
 
 let activeAdhanAudio: HTMLAudioElement | null = null;
+let activeAudioState: {
+  playing: boolean;
+  labelAr: string | null;
+  adhanId: AdhanSoundId | null;
+} = {
+  playing: false,
+  labelAr: null,
+  adhanId: null,
+};
+
+function notifyAudioState(
+  playing: boolean,
+  labelAr: string | null = null,
+  adhanId: AdhanSoundId | null = null
+): void {
+  activeAudioState = { playing, labelAr, adhanId };
+  if (isBrowser()) {
+    window.dispatchEvent(
+      new CustomEvent(ADHAN_AUDIO_STATE_EVENT, { detail: activeAudioState })
+    );
+  }
+}
+
+export function getActiveAudioState() {
+  return activeAudioState;
+}
 
 export function stopFullAdhanAudio(): void {
   if (activeAdhanAudio) {
     try {
+      activeAdhanAudio.onended = null;
+      activeAdhanAudio.onerror = null;
       activeAdhanAudio.pause();
       activeAdhanAudio.currentTime = 0;
     } catch {
@@ -242,11 +389,21 @@ export function stopFullAdhanAudio(): void {
       // ignore
     }
   }
+  notifyAudioState(false, null, null);
+}
+
+function resolvePrayerSlugFromArabic(prayerNameAr: string): string {
+  if (prayerNameAr.includes("الفجر") || prayerNameAr.includes("فجر")) return "fajr";
+  if (prayerNameAr.includes("الشروق") || prayerNameAr.includes("شروق")) return "sunrise";
+  if (prayerNameAr.includes("الظهر") || prayerNameAr.includes("ظهر")) return "dhuhr";
+  if (prayerNameAr.includes("العصر") || prayerNameAr.includes("عصر")) return "asr";
+  if (prayerNameAr.includes("المغرب") || prayerNameAr.includes("مغرب")) return "maghrib";
+  if (prayerNameAr.includes("العشاء") || prayerNameAr.includes("عشاء")) return "isha";
+  return "dhuhr";
 }
 
 /**
- * Speaks an Arabic notification phrase (e.g. "الله أكبر الله أكبر، اقتربت صلاة الظهر")
- * using the browser's Arabic SpeechSynthesis engine.
+ * Speaks an Arabic notification phrase as fallback if audio file is unavailable.
  */
 export function speakArabicAlert(text: string): void {
   if (!isBrowser() || !("speechSynthesis" in window)) return;
@@ -274,33 +431,71 @@ export function speakArabicAlert(text: string): void {
 }
 
 /**
- * Plays a pre-prayer approaching alert: e.g. "الله أكبر الله أكبر.. اقتربت صلاة الظهر"
+ * Plays a pre-prayer approaching alert using verified pre-recorded MP3 files:
+ * - approaching-voice: "/audio/alerts/approaching-{prayer}.mp3" ("الله أكبر.. اقتربت صلاة ... حي على الصلاة")
+ * - takbeer-voice: "/audio/alerts/takbeer-egypt.mp3" (Takbeer by Sheikh Abdul Basit)
+ * - takbeer-echo: "/audio/alerts/takbeer-haram.mp3" (Takbeer of Makkah Haram by Sheikh Ali Ahmed Mulla)
+ * - salawat-afasy: "/audio/alerts/salawat-afasy.mp3" (Salawat on the Prophet ﷺ by Mishary Al-Afasy)
+ * - salawat-maher: "/audio/alerts/salawat-maher.mp3" (Salawat on the Prophet ﷺ by Maher Al-Muaiqly)
  */
-export function playApproachingPrayerAlert(
+export async function playApproachingPrayerAlert(
   prayerNameAr: string,
-  preMinutes = 10,
-  tone: NotificationToneId = "approaching-voice"
-): void {
+  _preMinutes = 10,
+  tone: NotificationToneId = "approaching-voice",
+  onEnded?: () => void
+): Promise<void> {
   if (!isBrowser() || tone === "silent") return;
 
-  playNotificationTone(tone);
+  stopFullAdhanAudio();
 
-  if (tone === "approaching-voice" || tone === "takbeer-voice") {
-    const text =
-      tone === "takbeer-voice"
-        ? `اللَّهُ أَكْبَرُ، اللَّهُ أَكْبَرُ. اقتربت صلاة ${prayerNameAr}`
-        : preMinutes > 0
-        ? `اللَّهُ أَكْبَرُ، اللَّهُ أَكْبَرُ. اقتربت صلاة ${prayerNameAr}، يتبقى ${preMinutes} دقائق على موعد الأذان`
-        : `اللَّهُ أَكْبَرُ، اللَّهُ أَكْبَرُ. اقتربت صلاة ${prayerNameAr}`;
+  if (tone === "spiritual-chime" || tone === "soft-bell") {
+    playNotificationTone(tone);
+    if (onEnded) setTimeout(onEnded, 1500);
+    return;
+  }
 
-    setTimeout(() => {
-      speakArabicAlert(text);
-    }, 350);
+  const slug = resolvePrayerSlugFromArabic(prayerNameAr);
+  let alertAudioUrl = `/audio/alerts/approaching-${slug}.mp3`;
+  let labelAr = `تنبيه: اقتربت صلاة ${prayerNameAr}`;
+
+  if (tone === "takbeer-voice") {
+    alertAudioUrl = "/audio/alerts/takbeer-egypt.mp3";
+    labelAr = "تكبير (الشيخ عبد الباسط عبد الصمد)";
+  } else if (tone === "takbeer-echo") {
+    alertAudioUrl = "/audio/alerts/takbeer-haram.mp3";
+    labelAr = "تكبير الحرم المكي (الشيخ علي أحمد ملا)";
+  } else if (tone === "salawat-afasy") {
+    alertAudioUrl = "/audio/alerts/salawat-afasy.mp3";
+    labelAr = "الصلاة على النبي ﷺ (الشيخ مشاري العفاسي)";
+  } else if (tone === "salawat-maher") {
+    alertAudioUrl = "/audio/alerts/salawat-maher.mp3";
+    labelAr = "الصلاة على النبي ﷺ (الشيخ ماهر المعيقلي)";
+  }
+
+  try {
+    const audio = new Audio(alertAudioUrl);
+    activeAdhanAudio = audio;
+    notifyAudioState(true, labelAr, null);
+    audio.onended = () => {
+      activeAdhanAudio = null;
+      notifyAudioState(false, null, null);
+      if (onEnded) onEnded();
+    };
+    audio.onerror = () => {
+      activeAdhanAudio = null;
+      notifyAudioState(false, null, null);
+      if (onEnded) onEnded();
+    };
+    await audio.play();
+  } catch {
+    activeAdhanAudio = null;
+    notifyAudioState(false, null, null);
+    if (onEnded) onEnded();
   }
 }
 
 /**
- * Plays the full Adhan audio for a Sheikh at prayer time, with fallback to spoken Takbeer/Adhan.
+ * Plays the full verified Adhan audio for the selected Sheikh from local /audio/adhan/*.mp3
  */
 export async function playFullAdhanAudio(
   adhanId: AdhanSoundId = "abdulbasit",
@@ -310,43 +505,32 @@ export async function playFullAdhanAudio(
   if (!isBrowser()) return;
   stopFullAdhanAudio();
 
-  const meta =
-    ADHAN_VOICES_META.find((a) => a.id === adhanId) || ADHAN_VOICES_META[0];
-
-  if (adhanId === "takbeer-only" || meta.audioUrls.length === 0) {
-    playNotificationTone("takbeer-echo");
-    setTimeout(() => {
-      speakArabicAlert(
-        `اللَّهُ أَكْبَرُ، اللَّهُ أَكْبَرُ. حان الآن موعد أذان صلاة ${prayerNameAr}. حَيَّ عَلَى الصَّلَاةِ، حَيَّ عَلَى الْفَلَاحِ.`
-      );
-      if (onEnded) setTimeout(onEnded, 6000);
-    }, 500);
-    return;
-  }
+  const meta = getAdhanVoiceMeta(adhanId);
 
   for (const url of meta.audioUrls) {
     try {
       const audio = new Audio(url);
       activeAdhanAudio = audio;
+      notifyAudioState(true, `${meta.nameAr} — أذان ${prayerNameAr}`, meta.id);
       audio.onended = () => {
         activeAdhanAudio = null;
+        notifyAudioState(false, null, null);
+        if (onEnded) onEnded();
+      };
+      audio.onerror = () => {
+        activeAdhanAudio = null;
+        notifyAudioState(false, null, null);
         if (onEnded) onEnded();
       };
       await audio.play();
       return;
     } catch {
-      // try next fallback URL
+      // try next URL if any
     }
   }
 
-  // Fallback if offline or external audio blocked
-  playNotificationTone("takbeer-echo");
-  setTimeout(() => {
-    speakArabicAlert(
-      `اللَّهُ أَكْبَرُ، اللَّهُ أَكْبَرُ، اللَّهُ أَكْبَرُ، اللَّهُ أَكْبَرُ. حان الآن موعد أذان صلاة ${prayerNameAr}. أَشْهَدُ أَنْ لَا إِلَهَ إِلَّا اللَّهُ، أَشْهَدُ أَنَّ مُحَمَّدًا رَسُولُ اللَّهِ، حَيَّ عَلَى الصَّلَاةِ، حَيَّ عَلَى الْفَلَاحِ، اللَّهُ أَكْبَرُ اللَّهُ أَكْبَرُ، لَا إِلَهَ إِلَّا اللَّهُ.`
-    );
-    if (onEnded) setTimeout(onEnded, 9000);
-  }, 400);
+  notifyAudioState(false, null, null);
+  if (onEnded) onEnded();
 }
 
 // Synthesizes legal, pleasant spiritual notification tones via Web Audio API
