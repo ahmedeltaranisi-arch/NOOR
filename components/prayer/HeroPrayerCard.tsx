@@ -25,6 +25,8 @@ import {
   formatPrayerTime12Ar,
 } from "@/lib/prayer-times";
 import {
+  ADHAN_AUDIO_STATE_EVENT,
+  getActiveAudioState,
   getSavedLocation,
   getSavedPrayerNotifications,
   getSavedPrayerSettings,
@@ -60,13 +62,19 @@ export function HeroPrayerCard() {
       setSettings(getSavedPrayerSettings());
     };
 
+    const syncAudioState = () => {
+      setIsAdhanPlaying(getActiveAudioState().playing);
+    };
+
     window.addEventListener(STORAGE_CHANGE_EVENT, syncFromStorage);
+    window.addEventListener(ADHAN_AUDIO_STATE_EVENT, syncAudioState);
     const interval = setInterval(() => {
       setNow(new Date());
     }, 1000);
 
     return () => {
       window.removeEventListener(STORAGE_CHANGE_EVENT, syncFromStorage);
+      window.removeEventListener(ADHAN_AUDIO_STATE_EVENT, syncAudioState);
       clearInterval(interval);
     };
   }, []);

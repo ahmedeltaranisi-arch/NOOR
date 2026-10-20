@@ -24,9 +24,11 @@ import {
   PRAYER_NAMES_AR,
 } from "@/lib/prayer-times";
 import {
+  ADHAN_AUDIO_STATE_EVENT,
   ADHAN_VOICES_META,
   clearAllLocalData,
   DEFAULT_PRAYER_NOTIFICATIONS,
+  getActiveAudioState,
   getSavedLocation,
   getSavedPrayerNotifications,
   getSavedPrayerSettings,
@@ -57,15 +59,23 @@ import {
 const TONE_OPTIONS: { id: NotificationToneId; labelAr: string }[] = [
   {
     id: "approaching-voice",
-    labelAr: "تنبيه ناطق («الله أكبر.. اقتربت صلاة ...»)",
+    labelAr: "تنبيه صوتي ناطق («الله أكبر.. اقتربت صلاة ... حي على الصلاة»)",
   },
   {
     id: "takbeer-voice",
-    labelAr: "تكبير صوتي مع اسم الصلاة",
+    labelAr: "تكبير مصري بصوت الشيخ عبد الباسط عبد الصمد",
   },
   {
     id: "takbeer-echo",
-    labelAr: "صدى التكبير الهادئ",
+    labelAr: "تكبير الحرم المكي بصوت الشيخ علي أحمد ملا",
+  },
+  {
+    id: "salawat-afasy",
+    labelAr: "الصلاة على النبي ﷺ بصوت الشيخ مشاري العفاسي",
+  },
+  {
+    id: "salawat-maher",
+    labelAr: "الصلاة على النبي ﷺ بصوت الشيخ ماهر المعيقلي",
   },
   {
     id: "spiritual-chime",
@@ -94,11 +104,16 @@ export function SettingsAndAlertsClient() {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [playingAdhanPreview, setPlayingAdhanPreview] = useState<string | null>(null);
+  const [sheikhCategoryFilter, setSheikhCategoryFilter] = useState<"all" | "egypt" | "arab">("all");
+  const [isAnyAudioPlaying, setIsAnyAudioPlaying] = useState(false);
 
   useEffect(() => {
     setLocation(getSavedLocation());
     setCalcSettings(getSavedPrayerSettings());
     setNotifSettings(getSavedPrayerNotifications());
+    const initAudio = getActiveAudioState();
+    setIsAnyAudioPlaying(initAudio.playing);
+    setPlayingAdhanPreview(initAudio.adhanId);
 
     if (typeof window !== "undefined" && "Notification" in window) {
       setBrowserPerm(window.Notification.permission);
@@ -111,9 +126,16 @@ export function SettingsAndAlertsClient() {
       setCalcSettings(getSavedPrayerSettings());
       setNotifSettings(getSavedPrayerNotifications());
     };
+    const syncAudio = () => {
+      const st = getActiveAudioState();
+      setIsAnyAudioPlaying(st.playing);
+      setPlayingAdhanPreview(st.adhanId);
+    };
     window.addEventListener(STORAGE_CHANGE_EVENT, sync);
+    window.addEventListener(ADHAN_AUDIO_STATE_EVENT, syncAudio);
     return () => {
       window.removeEventListener(STORAGE_CHANGE_EVENT, sync);
+      window.removeEventListener(ADHAN_AUDIO_STATE_EVENT, syncAudio);
       stopFullAdhanAudio();
     };
   }, []);
@@ -325,32 +347,76 @@ export function SettingsAndAlertsClient() {
 
         {/* Sheikh Adhan Voice Selector Grid */}
         <div className="rounded-2xl border border-gold/30 bg-muted/30 p-4 sm:p-5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
             <div>
               <h3 className="text-sm font-extrabold text-foreground sm:text-base">
-                اختر صوت المؤذن لرفع الأذان عند حلول وقت الصلاة
+                اختر صوت المؤذن لرفع الأذان عند حلول وقت الصلاة (١٧ تسجيلًا معتمدًا)
               </h3>
               <p className="text-xs text-muted-foreground">
-                يمكنك الاستماع لمعاينة صوت كل شيخ أو اختيار مؤذن مختلف لكل صلاة بالأسفل
+                جميع الأصوات مضمنة ومفحوصة بدقة لنخبة من كبار قراء ومؤذني مصر والحرمين والعالم العربي
               </p>
             </div>
-            {playingAdhanPreview && (
-              <button
-                type="button"
-                onClick={() => {
-                  stopFullAdhanAudio();
-                  setPlayingAdhanPreview(null);
-                }}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-red-700"
-              >
-                <Square className="h-3 w-3 fill-current" />
-                <span>إيقاف معاينة الأذان</span>
-              </button>
-            )}
+
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex rounded-xl border border-border bg-card p-1">
+                <button
+                  type="button"
+                  onClick={() => setSheikhCategoryFilter("all")}
+                  className={cn(
+                    "rounded-lg px-2.5 py-1 text-xs font-bold transition",
+                    sheikhCategoryFilter === "all"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  الكل (١٧)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSheikhCategoryFilter("egypt")}
+                  className={cn(
+                    "rounded-lg px-2.5 py-1 text-xs font-bold transition",
+                    sheikhCategoryFilter === "egypt"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  شيوخ مصر (١٢)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSheikhCategoryFilter("arab")}
+                  className={cn(
+                    "rounded-lg px-2.5 py-1 text-xs font-bold transition",
+                    sheikhCategoryFilter === "arab"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  الحرمان والعرب (٥)
+                </button>
+              </div>
+
+              {(playingAdhanPreview || isAnyAudioPlaying) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    stopFullAdhanAudio();
+                    setPlayingAdhanPreview(null);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-red-700"
+                >
+                  <Square className="h-3 w-3 fill-current" />
+                  <span>إيقاف الصوت</span>
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {ADHAN_VOICES_META.map((voice) => {
+            {ADHAN_VOICES_META.filter((v) =>
+              sheikhCategoryFilter === "all" ? true : v.category === sheikhCategoryFilter
+            ).map((voice) => {
               const isSelected = notifSettings.selectedAdhanSound === voice.id;
               const isPlayingThis = playingAdhanPreview === voice.id;
 
@@ -373,13 +439,21 @@ export function SettingsAndAlertsClient() {
                       >
                         {voice.nameAr}
                       </button>
-                      {isSelected && (
-                        <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground">
-                          المختار
+                      <div className="flex shrink-0 items-center gap-1">
+                        <span className="rounded-full bg-gold/15 px-2 py-0.5 text-[10px] font-bold text-gold">
+                          {voice.countryAr}
                         </span>
-                      )}
+                        {isSelected && (
+                          <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground">
+                            المختار
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <p className="mt-1 text-[11px] text-muted-foreground">
+                    <p className="mt-1 text-[11px] font-semibold text-primary">
+                      {voice.titleAr}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
                       {voice.styleAr}
                     </p>
                   </div>
@@ -424,17 +498,17 @@ export function SettingsAndAlertsClient() {
           </div>
         </div>
 
-        {/* Quick Voice Alert Demo Bar ("اقتربت صلاة الظهر" / "اقتربت صلاة العصر") */}
-        <div className="rounded-2xl border border-primary/25 bg-primary/5 p-4">
+        {/* Quick Voice Alert Demo Bar ("اقتربت صلاة الظهر" / "اقتربت صلاة العصر" + Takbeer & Salawat) */}
+        <div className="space-y-3 rounded-2xl border border-primary/25 bg-primary/5 p-4">
           <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
             <div className="flex items-start gap-2.5">
               <Mic className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
               <div>
                 <h3 className="text-xs font-extrabold text-foreground sm:text-sm">
-                  تجربة التنبيهات الصوتية الناطقة قبل كل صلاة
+                  تجربة أصوات اقتراب الصلاة والتكبير والصلاة على النبي ﷺ
                 </h3>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  ينطق المتصفح بالتكبير متبوعًا بـ «اقتربت صلاة الظهر»، «اقتربت صلاة العصر» وغيرها حسب المدة التي تحددها قبل الأذان:
+                  ملفات صوتية عربية فصيحة ومفحوصة بدقة بالتكبير متبوعًا بـ «اقتربت صلاة الظهر، حي على الصلاة» أو بالصلاة على النبي ﷺ:
                 </p>
               </div>
             </div>
@@ -456,6 +530,44 @@ export function SettingsAndAlertsClient() {
                 )
               )}
             </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 border-t border-primary/15 pt-3">
+            <span className="text-[11px] font-bold text-muted-foreground">
+              أصوات تكبير وصلاة على النبي ﷺ قبل الأذان:
+            </span>
+            <button
+              type="button"
+              onClick={() => playApproachingPrayerAlert("الظهر", 10, "takbeer-voice")}
+              className="inline-flex items-center gap-1 rounded-xl border border-gold/40 bg-card px-2.5 py-1 text-[11px] font-bold text-foreground transition hover:border-primary hover:text-primary"
+            >
+              <Play className="h-2.5 w-2.5 fill-current text-primary" />
+              <span>تكبير (الشيخ عبد الباسط)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => playApproachingPrayerAlert("الظهر", 10, "takbeer-echo")}
+              className="inline-flex items-center gap-1 rounded-xl border border-gold/40 bg-card px-2.5 py-1 text-[11px] font-bold text-foreground transition hover:border-primary hover:text-primary"
+            >
+              <Play className="h-2.5 w-2.5 fill-current text-primary" />
+              <span>تكبير الحرم المكي (علي ملا)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => playApproachingPrayerAlert("الظهر", 10, "salawat-afasy")}
+              className="inline-flex items-center gap-1 rounded-xl border border-gold/40 bg-card px-2.5 py-1 text-[11px] font-bold text-foreground transition hover:border-primary hover:text-primary"
+            >
+              <Play className="h-2.5 w-2.5 fill-current text-primary" />
+              <span>الصلاة على النبي ﷺ (العفاسي)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => playApproachingPrayerAlert("الظهر", 10, "salawat-maher")}
+              className="inline-flex items-center gap-1 rounded-xl border border-gold/40 bg-card px-2.5 py-1 text-[11px] font-bold text-foreground transition hover:border-primary hover:text-primary"
+            >
+              <Play className="h-2.5 w-2.5 fill-current text-primary" />
+              <span>الصلاة على النبي ﷺ (المعيقلي)</span>
+            </button>
           </div>
         </div>
 

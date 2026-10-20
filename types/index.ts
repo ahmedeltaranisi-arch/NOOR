@@ -97,19 +97,33 @@ export interface DailyPrayerSchedule {
 }
 
 export type NotificationToneId =
-  | "takbeer-voice"
   | "approaching-voice"
+  | "takbeer-voice"
   | "takbeer-echo"
+  | "salawat-afasy"
+  | "salawat-maher"
   | "spiritual-chime"
   | "soft-bell"
   | "silent";
 
 export type AdhanSoundId =
   | "abdulbasit"
+  | "refaat"
+  | "minshawi"
+  | "hussary"
+  | "mustafa-ismail"
+  | "banna"
+  | "naqshbandi"
+  | "tobar"
+  | "shuaisha"
+  | "nuinaa"
+  | "islam-sobhi"
   | "makkah"
   | "madinah"
-  | "egypt-radio"
+  | "aqsa"
   | "afasy"
+  | "qatami"
+  | "egypt-radio"
   | "takbeer-only";
 
 export interface SinglePrayerAlertConfig {

@@ -14,6 +14,9 @@ import { getSurahDetailById, searchQuranVerses, SURAHS_META } from "@/lib/quran"
 import { getHijriDateInfo, normalizeArabicText } from "@/lib/utils";
 import { ALLAH_NAMES } from "@/data/daily-content";
 import { ADHKAR_CATEGORIES, ADHKAR_DATA } from "@/data/adhkar";
+import { ADHAN_VOICES_META } from "@/lib/storage/local-storage";
+import fs from "fs";
+import path from "path";
 
 describe("1. المحافظات المصرية الـ 27 وتحديد الموقع", () => {
   it("يدعم جميع محافظات جمهورية مصر العربية الـ 27 كاملة مع مدنها وإحداثياتها", () => {
@@ -209,5 +212,40 @@ describe("4. التقويم الهجري والقرآن الكريم والأذ�
     expect(ADHKAR_CATEGORIES.length).toBe(7);
     expect(ADHKAR_DATA.length).toBeGreaterThanOrEqual(30);
     expect(ALLAH_NAMES.length).toBe(99);
+  });
+
+  it("يتحقق من وجود وصلاحية جميع ملفات صوت الأذان للشيوخ وتنبيهات اقتراب الصلاة محليًا", () => {
+    expect(ADHAN_VOICES_META.length).toBe(17);
+
+    // Every Sheikh voice must have an existing, non-empty local MP3 file
+    for (const voice of ADHAN_VOICES_META) {
+      expect(voice.audioUrls.length).toBeGreaterThanOrEqual(1);
+      for (const relUrl of voice.audioUrls) {
+        const diskPath = path.join(process.cwd(), "public", relUrl);
+        expect(fs.existsSync(diskPath)).toBe(true);
+        const stat = fs.statSync(diskPath);
+        expect(stat.size).toBeGreaterThan(50 * 1024); // > 50 KB
+      }
+    }
+
+    // Every approaching prayer alert & Salawat/Takbeer file must exist and be non-empty
+    const requiredAlerts = [
+      "approaching-fajr.mp3",
+      "approaching-sunrise.mp3",
+      "approaching-dhuhr.mp3",
+      "approaching-asr.mp3",
+      "approaching-maghrib.mp3",
+      "approaching-isha.mp3",
+      "takbeer-egypt.mp3",
+      "takbeer-haram.mp3",
+      "salawat-afasy.mp3",
+      "salawat-maher.mp3",
+    ];
+    for (const filename of requiredAlerts) {
+      const alertPath = path.join(process.cwd(), "public", "audio", "alerts", filename);
+      expect(fs.existsSync(alertPath)).toBe(true);
+      const stat = fs.statSync(alertPath);
+      expect(stat.size).toBeGreaterThan(20 * 1024); // > 20 KB
+    }
   });
 });

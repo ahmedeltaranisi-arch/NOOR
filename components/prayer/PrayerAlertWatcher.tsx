@@ -141,9 +141,7 @@ export function PrayerAlertWatcher() {
                 adhanSound: chosenAdhan,
               });
 
-              speakArabicAlert(
-                `اللَّهُ أَكْبَرُ، اللَّهُ أَكْبَرُ. تذكير بإقامة صلاة ${entry.nameAr}. قَدْ قَامَتِ الصَّلَاةُ، قَدْ قَامَتِ الصَّلَاةُ.`
-              );
+              playApproachingPrayerAlert(entry.nameAr, 0, "takbeer-voice");
               sendBrowserNotification(titleAr, messageAr);
             }
           }
