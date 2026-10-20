@@ -187,7 +187,7 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
   return (
     <div className="space-y-8">
       {/* Hero Banner with Last Read & Daily Wird Summary */}
-      <div className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-bl from-primary via-emerald-900 to-emerald-950 p-6 text-primary-foreground shadow-soft sm:p-8">
+      <div className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-bl from-primary via-emerald-900 to-emerald-950 p-4 text-primary-foreground shadow-soft sm:p-6 md:p-8">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-center">
           <div className="lg:col-span-7">
             <div className="inline-flex items-center gap-2 rounded-full border border-gold/40 bg-gold/15 px-3.5 py-1 text-xs font-bold text-gold">
@@ -297,7 +297,7 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
         <div
           role="tablist"
           aria-label="أقسام القرآن الكريم"
-          className="inline-flex rounded-2xl border border-border bg-card p-1.5 shadow-sm"
+          className="grid w-full grid-cols-3 gap-1 rounded-2xl border border-border bg-card p-1.5 shadow-sm sm:inline-flex sm:w-auto"
         >
           <button
             type="button"
@@ -305,14 +305,17 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
             aria-selected={activeTab === "surahs"}
             onClick={() => setActiveTab("surahs")}
             className={cn(
-              "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition",
+              "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-2 py-2 text-xs font-bold transition sm:gap-2 sm:px-4 sm:text-sm",
               activeTab === "surahs"
                 ? "bg-primary text-primary-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            <BookOpen className="h-4 w-4" />
-            <span>فهرس السور والبحث ({toArabicDigits(114)})</span>
+            <BookOpen className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+            <span className="sm:hidden">السور ({toArabicDigits(114)})</span>
+            <span className="hidden sm:inline">
+              فهرس السور والبحث ({toArabicDigits(114)})
+            </span>
           </button>
 
           <button
@@ -321,14 +324,19 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
             aria-selected={activeTab === "bookmarks"}
             onClick={() => setActiveTab("bookmarks")}
             className={cn(
-              "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition",
+              "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-2 py-2 text-xs font-bold transition sm:gap-2 sm:px-4 sm:text-sm",
               activeTab === "bookmarks"
                 ? "bg-primary text-primary-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            <Bookmark className="h-4 w-4" />
-            <span>العلامات المرجعية ({toArabicDigits(bookmarks.length)})</span>
+            <Bookmark className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+            <span className="sm:hidden">
+              المرجعية ({toArabicDigits(bookmarks.length)})
+            </span>
+            <span className="hidden sm:inline">
+              العلامات المرجعية ({toArabicDigits(bookmarks.length)})
+            </span>
           </button>
 
           <button
@@ -337,14 +345,15 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
             aria-selected={activeTab === "wird"}
             onClick={() => setActiveTab("wird")}
             className={cn(
-              "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition",
+              "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-2 py-2 text-xs font-bold transition sm:gap-2 sm:px-4 sm:text-sm",
               activeTab === "wird"
                 ? "bg-primary text-primary-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            <Sparkles className="h-4 w-4" />
-            <span>نظام الورد اليومي والسجل</span>
+            <Sparkles className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+            <span className="sm:hidden">الورد اليومي</span>
+            <span className="hidden sm:inline">نظام الورد اليومي والسجل</span>
           </button>
         </div>
       </div>
@@ -353,7 +362,7 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
       {activeTab === "surahs" && (
         <div className="space-y-6">
           {/* Search & Filter Bar */}
-          <div className="flex flex-col gap-3 rounded-3xl border border-border bg-card p-5 shadow-soft sm:flex-row sm:items-center">
+          <div className="flex flex-col gap-3 rounded-3xl border border-border bg-card p-4 shadow-soft sm:flex-row sm:items-center sm:p-5">
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
@@ -365,7 +374,7 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
               />
             </div>
 
-            <div className="flex items-center gap-1.5">
+            <div className="grid w-full grid-cols-3 gap-1.5 sm:flex sm:w-auto sm:items-center">
               {(
                 [
                   { id: "all", label: "كل السور (١١٤)" },
@@ -378,7 +387,7 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
                   type="button"
                   onClick={() => setFilterType(t.id)}
                   className={cn(
-                    "rounded-xl px-3.5 py-2 text-xs font-bold transition",
+                    "whitespace-nowrap rounded-xl px-2.5 py-2 text-center text-xs font-bold transition sm:px-3.5",
                     filterType === t.id
                       ? "bg-primary text-primary-foreground"
                       : "border border-border bg-background text-muted-foreground hover:text-foreground"

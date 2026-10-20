@@ -112,25 +112,25 @@ export function HeroPrayerCard() {
     <>
       <section
         aria-label="بطاقة مواقيت الصلاة الرئيسية"
-        className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-bl from-primary via-emerald-900 to-emerald-950 p-6 text-primary-foreground shadow-soft sm:p-8"
+        className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-bl from-primary via-emerald-900 to-emerald-950 p-4 text-primary-foreground shadow-soft sm:p-6 md:p-8"
       >
         {/* Subtle Ornamental Geometric Circles */}
         <div className="pointer-events-none absolute -left-16 -top-16 h-64 w-64 rounded-full bg-gold/10 blur-2xl" />
         <div className="pointer-events-none absolute -bottom-20 -right-20 h-72 w-72 rounded-full bg-emerald-400/10 blur-3xl" />
 
         {/* Top Bar: Location & Dates */}
-        <div className="relative z-10 flex flex-col justify-between gap-4 border-b border-white/10 pb-5 md:flex-row md:items-center">
-          <div className="flex flex-wrap items-center gap-2.5">
+        <div className="relative z-10 flex flex-col justify-between gap-3.5 border-b border-white/10 pb-4 md:flex-row md:items-center md:pb-5">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => setIsModalOpen(true)}
-              className="inline-flex items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-bold text-white backdrop-blur-sm transition hover:bg-white/20"
+              className="inline-flex max-w-full items-center gap-1.5 rounded-2xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-bold text-white backdrop-blur-sm transition hover:bg-white/20 active:scale-95 sm:gap-2 sm:px-4 sm:text-sm"
             >
-              <MapPin className="h-4 w-4 text-gold" />
-              <span>
+              <MapPin className="h-4 w-4 shrink-0 text-gold" />
+              <span className="truncate">
                 محافظة {location.governorateNameAr} • {location.cityNameAr}
               </span>
-              <span className="mr-1 rounded-lg bg-white/15 px-2 py-0.5 text-[11px] font-normal">
+              <span className="mr-0.5 shrink-0 rounded-lg bg-white/15 px-2 py-0.5 text-[10px] font-normal sm:text-[11px]">
                 تغيير
               </span>
             </button>
@@ -140,16 +140,16 @@ export function HeroPrayerCard() {
               onClick={handleQuickGps}
               disabled={gpsBusy}
               title="تحديد الموقع الحالي عبر GPS"
-              className="inline-flex items-center gap-1.5 rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-xs font-medium text-emerald-100 transition hover:bg-white/15 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-xs font-medium text-emerald-100 transition hover:bg-white/15 active:scale-95 disabled:opacity-50"
             >
-              <Navigation className="h-3.5 w-3.5 text-gold" />
+              <Navigation className="h-3.5 w-3.5 shrink-0 text-gold" />
               <span>{gpsBusy ? "جارٍ التحديد..." : "موقعي الحالي"}</span>
             </button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm">
-            <div className="inline-flex items-center gap-2 rounded-xl bg-black/20 px-3.5 py-1.5 font-semibold text-gold">
-              <Sparkles className="h-4 w-4" />
+          <div className="flex flex-wrap items-center gap-2.5 text-xs sm:gap-3 sm:text-sm">
+            <div className="inline-flex items-center gap-1.5 rounded-xl bg-black/20 px-3 py-1.5 font-semibold text-gold">
+              <Sparkles className="h-3.5 w-3.5 shrink-0" />
               <span>{mounted ? schedule.hijriFormatted : "التقويم الهجري"}</span>
             </div>
             <div className="text-emerald-100/90">
@@ -206,41 +206,41 @@ export function HeroPrayerCard() {
           </div>
 
           {/* Countdown Box */}
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-white/15 bg-black/25 p-5 backdrop-blur-md lg:col-span-5">
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-white/15 bg-black/25 p-4 backdrop-blur-md sm:p-5 lg:col-span-5">
             <span className="text-xs font-semibold text-emerald-200">
               الوقت المتبقي على أذان {schedule.nextPrayer.nameAr}
             </span>
 
             <div
-              className="mt-3 flex items-center gap-2 sm:gap-3"
+              className="mt-3 flex items-center gap-1.5 sm:gap-3"
               dir="ltr"
               aria-live="polite"
               aria-atomic="true"
             >
-              <div className="flex min-w-[68px] flex-col items-center rounded-xl bg-white/10 px-3 py-2.5">
+              <div className="flex min-w-[58px] flex-col items-center rounded-xl bg-white/10 px-2.5 py-2 sm:min-w-[68px] sm:px-3 sm:py-2.5">
                 <span className="font-mono text-2xl font-extrabold text-white sm:text-3xl">
                   {mounted ? countdown.hours : "00"}
                 </span>
-                <span className="mt-0.5 text-[11px] text-emerald-200">ساعة</span>
+                <span className="mt-0.5 text-[10px] text-emerald-200 sm:text-[11px]">ساعة</span>
               </div>
-              <span className="text-2xl font-bold text-gold">:</span>
-              <div className="flex min-w-[68px] flex-col items-center rounded-xl bg-white/10 px-3 py-2.5">
+              <span className="text-xl font-bold text-gold sm:text-2xl">:</span>
+              <div className="flex min-w-[58px] flex-col items-center rounded-xl bg-white/10 px-2.5 py-2 sm:min-w-[68px] sm:px-3 sm:py-2.5">
                 <span className="font-mono text-2xl font-extrabold text-white sm:text-3xl">
                   {mounted ? countdown.minutes : "00"}
                 </span>
-                <span className="mt-0.5 text-[11px] text-emerald-200">دقيقة</span>
+                <span className="mt-0.5 text-[10px] text-emerald-200 sm:text-[11px]">دقيقة</span>
               </div>
-              <span className="text-2xl font-bold text-gold">:</span>
-              <div className="flex min-w-[68px] flex-col items-center rounded-xl bg-gold/20 px-3 py-2.5 ring-1 ring-gold/40">
+              <span className="text-xl font-bold text-gold sm:text-2xl">:</span>
+              <div className="flex min-w-[58px] flex-col items-center rounded-xl bg-gold/20 px-2.5 py-2 ring-1 ring-gold/40 sm:min-w-[68px] sm:px-3 sm:py-2.5">
                 <span className="font-mono text-2xl font-extrabold text-gold sm:text-3xl">
                   {mounted ? countdown.seconds : "00"}
                 </span>
-                <span className="mt-0.5 text-[11px] text-gold">ثانية</span>
+                <span className="mt-0.5 text-[10px] text-gold sm:text-[11px]">ثانية</span>
               </div>
             </div>
 
             {/* Quick Audio Controls: Adhan & Spoken Pre-Prayer Alert */}
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+            <div className="mt-4 flex w-full flex-wrap items-center justify-center gap-2">
               <button
                 type="button"
                 onClick={async () => {

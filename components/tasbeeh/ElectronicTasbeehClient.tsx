@@ -227,9 +227,9 @@ export function ElectronicTasbeehClient() {
       {/* Main Grid: Ergonomic Tasbeeh Counter + Phrases & Daily Stats */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         {/* Left/Center: One-Handed Interactive Tasbeeh */}
-        <div className="flex flex-col items-center justify-between rounded-3xl border border-border bg-card p-6 shadow-soft lg:col-span-7 sm:p-8">
+        <div className="flex flex-col items-center justify-between rounded-3xl border border-border bg-card p-4 shadow-soft sm:p-6 md:p-8 lg:col-span-7">
           {/* Top Bar: Vibration & Reset */}
-          <div className="flex w-full items-center justify-between">
+          <div className="flex w-full flex-wrap items-center justify-between gap-2">
             <button
               type="button"
               onClick={() => {
@@ -248,15 +248,15 @@ export function ElectronicTasbeehClient() {
               <span>الاهتزاز: {state.vibrateEnabled ? "مفعل" : "متوقف"}</span>
             </button>
 
-            <div className="flex items-center gap-2">
-              <span className="rounded-xl bg-gold-muted px-3 py-1 text-xs font-bold text-gold">
-                الدورات المكتملة: {toArabicDigits(state.cyclesCompleted)}
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className="rounded-xl bg-gold-muted px-2.5 py-1 text-[11px] font-bold text-gold sm:px-3 sm:text-xs">
+                الدورات: {toArabicDigits(state.cyclesCompleted)}
               </span>
               <button
                 type="button"
                 onClick={() => setShowResetConfirm(true)}
                 aria-label="إعادة تعيين العداد"
-                className="inline-flex items-center gap-1 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold text-muted-foreground hover:border-red-500/40 hover:text-red-600"
+                className="inline-flex items-center gap-1 rounded-xl border border-border bg-background px-2.5 py-1.5 text-xs font-bold text-muted-foreground hover:border-red-500/40 hover:text-red-600 sm:px-3"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
                 <span>تصفير</span>
@@ -265,16 +265,19 @@ export function ElectronicTasbeehClient() {
           </div>
 
           {/* Active Phrase Display */}
-          <div className="my-5 w-full rounded-2xl border border-gold/30 bg-background/70 p-5 text-center">
-            <p className="font-serif text-2xl font-bold leading-relaxed text-foreground sm:text-3xl">
+          <div className="my-4 w-full rounded-2xl border border-gold/30 bg-background/70 p-4 text-center sm:my-5 sm:p-5">
+            <p className="font-serif text-xl font-bold leading-relaxed text-foreground sm:text-3xl">
               {activePhrase.text}
             </p>
             <p className="mt-2 text-xs text-muted-foreground">{activePhrase.virtueAr}</p>
           </div>
 
           {/* Giant One-Handed Tap Circle Button */}
-          <div className="relative my-3 flex items-center justify-center">
-            <svg className="h-64 w-64 -rotate-90 transform sm:h-72 sm:w-72" viewBox="0 0 256 256">
+          <div className="relative my-2 flex items-center justify-center sm:my-3">
+            <svg
+              className="h-56 w-56 -rotate-90 transform min-[380px]:h-64 min-[380px]:w-64 sm:h-72 sm:w-72"
+              viewBox="0 0 256 256"
+            >
               <circle
                 cx="128"
                 cy="128"
@@ -302,15 +305,15 @@ export function ElectronicTasbeehClient() {
               type="button"
               onClick={handleIncrement}
               aria-label="اضغط للتسبيح وزيادة العداد"
-              className="group absolute flex h-52 w-52 flex-col items-center justify-center rounded-full bg-gradient-to-b from-primary to-emerald-900 text-primary-foreground shadow-xl transition-transform active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-gold sm:h-56 sm:w-56"
+              className="group absolute flex h-44 w-44 flex-col items-center justify-center rounded-full bg-gradient-to-b from-primary to-emerald-900 text-primary-foreground shadow-xl transition-transform active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-gold min-[380px]:h-52 min-[380px]:w-52 sm:h-56 sm:w-56"
             >
-              <span className="text-xs font-semibold text-emerald-200">
+              <span className="text-[11px] font-semibold text-emerald-200 sm:text-xs">
                 اضغط هنا للتسبيح
               </span>
-              <span className="my-1 font-mono text-5xl font-extrabold tracking-tight text-white sm:text-6xl">
+              <span className="my-1 font-mono text-4xl font-extrabold tracking-tight text-white min-[380px]:text-5xl sm:text-6xl">
                 {toArabicDigits(state.currentCount)}
               </span>
-              <span className="rounded-full bg-black/25 px-3 py-0.5 text-xs font-bold text-gold">
+              <span className="rounded-full bg-black/25 px-3 py-0.5 text-[11px] font-bold text-gold sm:text-xs">
                 الهدف: {toArabicDigits(state.targetCount)}
               </span>
             </button>

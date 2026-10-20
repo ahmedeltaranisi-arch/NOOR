@@ -242,17 +242,17 @@ export function SurahReaderClient({
       )}
 
       {/* Top Breadcrumb & Surah Header Card */}
-      <div className="rounded-3xl border border-border bg-card p-6 shadow-soft">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+      <div className="rounded-3xl border border-border bg-card p-4 shadow-soft sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-border pb-3.5 sm:gap-3 sm:pb-4">
           <Link
             href="/quran"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-3.5 py-2 text-xs font-bold text-foreground hover:border-primary hover:text-primary"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground hover:border-primary hover:text-primary sm:px-3.5"
           >
             <ChevronRight className="h-4 w-4" />
             <span>فهرس سور القرآن الكريم</span>
           </Link>
 
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground sm:gap-2 sm:text-xs">
             <span>ترتيب المصحف: {toArabicDigits(surah.id)}</span>
             <span>•</span>
             <span>{surah.typeAr}</span>
@@ -264,7 +264,7 @@ export function SurahReaderClient({
         </div>
 
         {/* Ornate Surah Banner */}
-        <div className="my-5 flex flex-col items-center justify-center gap-3.5 rounded-2xl border border-gold/30 bg-gradient-to-l from-primary via-emerald-900 to-primary px-6 py-7 text-center text-white shadow-inner sm:py-8">
+        <div className="my-4 flex flex-col items-center justify-center gap-3 rounded-2xl border border-gold/30 bg-gradient-to-l from-primary via-emerald-900 to-primary px-4 py-6 text-center text-white shadow-inner sm:my-5 sm:gap-3.5 sm:px-6 sm:py-8">
           <div className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-black/20 px-3.5 py-1 text-xs font-bold text-gold">
             <span>سورة رقم {toArabicDigits(surah.id)}</span>
             <span>•</span>
@@ -281,15 +281,15 @@ export function SurahReaderClient({
         </div>
 
         {/* Reader Controls Toolbar: View Mode, Font Size, Reciter */}
-        <div className="flex flex-col justify-between gap-4 pt-2 lg:flex-row lg:items-center">
+        <div className="flex flex-col justify-between gap-3.5 pt-1 lg:flex-row lg:items-center">
           {/* View Mode & Font Size */}
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-start sm:gap-3">
             <div className="inline-flex rounded-xl border border-border bg-muted/50 p-1">
               <button
                 type="button"
                 onClick={() => updatePrefs({ viewMode: "mushaf" })}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition",
+                  "inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-bold transition sm:px-3",
                   prefs.viewMode === "mushaf"
                     ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
@@ -302,7 +302,7 @@ export function SurahReaderClient({
                 type="button"
                 onClick={() => updatePrefs({ viewMode: "cards" })}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition",
+                  "inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-bold transition sm:px-3",
                   prefs.viewMode === "cards"
                     ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
@@ -314,8 +314,8 @@ export function SurahReaderClient({
             </div>
 
             {/* Font Size Controls */}
-            <div className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5">
-              <span className="text-xs font-semibold text-muted-foreground">حجم الخط:</span>
+            <div className="inline-flex items-center gap-1 rounded-xl border border-border bg-background px-2.5 py-1.5 sm:gap-1.5 sm:px-3">
+              <span className="text-xs font-semibold text-muted-foreground">الخط:</span>
               <button
                 type="button"
                 onClick={() =>
@@ -329,7 +329,7 @@ export function SurahReaderClient({
               >
                 <ZoomOut className="h-4 w-4" />
               </button>
-              <span className="min-w-[24px] text-center text-xs font-bold text-primary">
+              <span className="min-w-[20px] text-center text-xs font-bold text-primary">
                 {toArabicDigits(prefs.fontSizeLevel)}
               </span>
               <button
@@ -349,7 +349,7 @@ export function SurahReaderClient({
           </div>
 
           {/* Audio Player Bar */}
-          <div className="flex flex-wrap items-center gap-2.5 rounded-2xl border border-border bg-muted/40 p-2.5">
+          <div className="flex flex-col gap-2 rounded-2xl border border-border bg-muted/40 p-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2.5">
             <select
               aria-label="اختيار القارئ"
               value={prefs.reciterId}
@@ -360,7 +360,7 @@ export function SurahReaderClient({
                   audioRef.current?.pause();
                 }
               }}
-              className="rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-bold text-foreground"
+              className="w-full rounded-xl border border-border bg-card px-3 py-2 text-xs font-bold text-foreground sm:w-auto sm:py-1.5"
             >
               {QURAN_RECITERS.map((rec) => (
                 <option key={rec.id} value={rec.id}>
@@ -369,74 +369,82 @@ export function SurahReaderClient({
               ))}
             </select>
 
-            <div className="flex items-center gap-1" dir="ltr">
-              <button
-                type="button"
-                onClick={() => playSpecificAyah(Math.max(1, playingAyah - 1))}
-                disabled={playingAyah <= 1}
-                aria-label="الآية السابقة"
-                className="rounded-lg p-1.5 text-foreground hover:bg-card disabled:opacity-40"
-              >
-                <SkipBack className="h-4 w-4" />
-              </button>
+            <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-start">
+              <div className="flex items-center gap-1" dir="ltr">
+                <button
+                  type="button"
+                  onClick={() => playSpecificAyah(Math.max(1, playingAyah - 1))}
+                  disabled={playingAyah <= 1}
+                  aria-label="الآية السابقة"
+                  className="rounded-lg p-1.5 text-foreground hover:bg-card disabled:opacity-40"
+                >
+                  <SkipBack className="h-4 w-4" />
+                </button>
 
-              <button
-                type="button"
-                onClick={togglePlayPause}
-                aria-label={isPlaying ? "إيقاف التلاوة" : "تشغيل التلاوة"}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm transition hover:bg-primary/90"
-              >
-                {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-              </button>
+                <button
+                  type="button"
+                  onClick={togglePlayPause}
+                  aria-label={isPlaying ? "إيقاف التلاوة" : "تشغيل التلاوة"}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm transition hover:bg-primary/90 active:scale-95"
+                >
+                  {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                </button>
 
-              <button
-                type="button"
-                onClick={() =>
-                  playSpecificAyah(Math.min(surah.totalVerses, playingAyah + 1))
-                }
-                disabled={playingAyah >= surah.totalVerses}
-                aria-label="الآية التالية"
-                className="rounded-lg p-1.5 text-foreground hover:bg-card disabled:opacity-40"
-              >
-                <SkipForward className="h-4 w-4" />
-              </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    playSpecificAyah(Math.min(surah.totalVerses, playingAyah + 1))
+                  }
+                  disabled={playingAyah >= surah.totalVerses}
+                  aria-label="الآية التالية"
+                  className="rounded-lg p-1.5 text-foreground hover:bg-card disabled:opacity-40"
+                >
+                  <SkipForward className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                {/* Playback Speed */}
+                <select
+                  aria-label="سرعة التلاوة"
+                  value={playbackRate}
+                  onChange={(e) => setPlaybackRate(Number(e.target.value))}
+                  className="rounded-lg border border-border bg-card px-2 py-1 text-xs font-bold text-foreground"
+                >
+                  <option value={0.75}>0.75x</option>
+                  <option value={1}>1x</option>
+                  <option value={1.25}>1.25x</option>
+                  <option value={1.5}>1.5x</option>
+                </select>
+
+                {/* Mute / Volume */}
+                <button
+                  type="button"
+                  onClick={() => setIsMuted((prev) => !prev)}
+                  aria-label={isMuted ? "إلغاء كتم الصوت" : "كتم الصوت"}
+                  className="rounded-lg p-1.5 text-muted-foreground hover:bg-card hover:text-foreground"
+                >
+                  {isMuted ? (
+                    <VolumeX className="h-4 w-4" />
+                  ) : (
+                    <Volume2 className="h-4 w-4" />
+                  )}
+                </button>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={isMuted ? 0 : volume}
+                  onChange={(e) => {
+                    setIsMuted(false);
+                    setVolume(Number(e.target.value));
+                  }}
+                  aria-label="مستوى الصوت"
+                  className="hidden w-16 accent-primary sm:block"
+                />
+              </div>
             </div>
-
-            {/* Playback Speed */}
-            <select
-              aria-label="سرعة التلاوة"
-              value={playbackRate}
-              onChange={(e) => setPlaybackRate(Number(e.target.value))}
-              className="rounded-lg border border-border bg-card px-2 py-1 text-xs font-bold text-foreground"
-            >
-              <option value={0.75}>0.75x</option>
-              <option value={1}>1x</option>
-              <option value={1.25}>1.25x</option>
-              <option value={1.5}>1.5x</option>
-            </select>
-
-            {/* Mute / Volume */}
-            <button
-              type="button"
-              onClick={() => setIsMuted((prev) => !prev)}
-              aria-label={isMuted ? "إلغاء كتم الصوت" : "كتم الصوت"}
-              className="rounded-lg p-1.5 text-muted-foreground hover:bg-card hover:text-foreground"
-            >
-              {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-            </button>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.05}
-              value={isMuted ? 0 : volume}
-              onChange={(e) => {
-                setIsMuted(false);
-                setVolume(Number(e.target.value));
-              }}
-              aria-label="مستوى الصوت"
-              className="w-16 accent-primary"
-            />
           </div>
         </div>
 
@@ -450,7 +458,7 @@ export function SurahReaderClient({
 
       {/* Selected Ayah Quick Action Bar (in Mushaf continuous mode) */}
       {prefs.viewMode === "mushaf" && selectedVerseObj && (
-        <div className="sticky top-[68px] z-30 flex flex-col gap-2.5 rounded-2xl border border-gold/40 bg-card/95 px-4 py-3 shadow-md backdrop-blur-md lg:flex-row lg:items-center lg:justify-between">
+        <div className="sticky top-[58px] z-30 flex flex-col gap-2.5 rounded-2xl border border-gold/40 bg-card/95 p-3 shadow-md backdrop-blur-md sm:top-[72px] sm:px-4 sm:py-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2.5">
             <span className="shrink-0 rounded-xl bg-primary/15 px-3 py-1.5 text-xs font-extrabold text-primary">
               الآية المحددة: {toArabicDigits(selectedVerseObj.id)}
