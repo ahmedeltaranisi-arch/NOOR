@@ -6,6 +6,7 @@ import { Header } from "@/components/navigation/Header";
 import { MobileBottomNav } from "@/components/navigation/MobileBottomNav";
 import { Footer } from "@/components/layout/Footer";
 import { PrayerAlertWatcher } from "@/components/prayer/PrayerAlertWatcher";
+import { getSiteUrl } from "@/lib/utils";
 
 const cairoFont = localFont({
   src: [
@@ -37,7 +38,7 @@ const amiriQuranFont = localFont({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
+  metadataBase: new URL(getSiteUrl()),
   title: {
     default: "نور | NOOR — المنصة الإسلامية المتكاملة لمصر (مواقيت الصلاة، القبلة، القرآن، الأذكار)",
     template: "%s | نور — NOOR",
