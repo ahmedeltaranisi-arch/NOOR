@@ -276,7 +276,7 @@ export const DEFAULT_PRAYER_NOTIFICATIONS: PrayerNotificationSettings = {
       enabled: true,
       preAlertMinutes: 15,
       iqamahMinutes: 20,
-      tone: "approaching-voice",
+      tone: "approaching-only",
       adhanSound: "abdulbasit",
       voiceAnnouncementEnabled: true,
     },
@@ -284,7 +284,7 @@ export const DEFAULT_PRAYER_NOTIFICATIONS: PrayerNotificationSettings = {
       enabled: false,
       preAlertMinutes: 10,
       iqamahMinutes: 0,
-      tone: "soft-bell",
+      tone: "approaching-only",
       adhanSound: "takbeer-only",
       voiceAnnouncementEnabled: true,
     },
@@ -292,7 +292,7 @@ export const DEFAULT_PRAYER_NOTIFICATIONS: PrayerNotificationSettings = {
       enabled: true,
       preAlertMinutes: 10,
       iqamahMinutes: 15,
-      tone: "approaching-voice",
+      tone: "approaching-only",
       adhanSound: "abdulbasit",
       voiceAnnouncementEnabled: true,
     },
@@ -300,7 +300,7 @@ export const DEFAULT_PRAYER_NOTIFICATIONS: PrayerNotificationSettings = {
       enabled: true,
       preAlertMinutes: 10,
       iqamahMinutes: 15,
-      tone: "approaching-voice",
+      tone: "approaching-only",
       adhanSound: "abdulbasit",
       voiceAnnouncementEnabled: true,
     },
@@ -308,7 +308,7 @@ export const DEFAULT_PRAYER_NOTIFICATIONS: PrayerNotificationSettings = {
       enabled: true,
       preAlertMinutes: 10,
       iqamahMinutes: 10,
-      tone: "approaching-voice",
+      tone: "approaching-only",
       adhanSound: "abdulbasit",
       voiceAnnouncementEnabled: true,
     },
@@ -316,7 +316,7 @@ export const DEFAULT_PRAYER_NOTIFICATIONS: PrayerNotificationSettings = {
       enabled: true,
       preAlertMinutes: 10,
       iqamahMinutes: 15,
-      tone: "approaching-voice",
+      tone: "approaching-only",
       adhanSound: "abdulbasit",
       voiceAnnouncementEnabled: true,
     },
@@ -432,6 +432,7 @@ export function speakArabicAlert(text: string): void {
 
 /**
  * Plays a pre-prayer approaching alert using verified pre-recorded MP3 files:
+ * - approaching-only: "/audio/alerts/approaching-only-{prayer}.mp3" ("اقتربت صلاة ... فقط بدون تكبير")
  * - approaching-voice: "/audio/alerts/approaching-{prayer}.mp3" ("الله أكبر.. اقتربت صلاة ... حي على الصلاة")
  * - takbeer-voice: "/audio/alerts/takbeer-egypt.mp3" (Takbeer by Sheikh Abdul Basit)
  * - takbeer-echo: "/audio/alerts/takbeer-haram.mp3" (Takbeer of Makkah Haram by Sheikh Ali Ahmed Mulla)
@@ -441,7 +442,7 @@ export function speakArabicAlert(text: string): void {
 export async function playApproachingPrayerAlert(
   prayerNameAr: string,
   _preMinutes = 10,
-  tone: NotificationToneId = "approaching-voice",
+  tone: NotificationToneId = "approaching-only",
   onEnded?: () => void
 ): Promise<void> {
   if (!isBrowser() || tone === "silent") return;
@@ -455,10 +456,13 @@ export async function playApproachingPrayerAlert(
   }
 
   const slug = resolvePrayerSlugFromArabic(prayerNameAr);
-  let alertAudioUrl = `/audio/alerts/approaching-${slug}.mp3`;
-  let labelAr = `تنبيه: اقتربت صلاة ${prayerNameAr}`;
+  let alertAudioUrl = `/audio/alerts/approaching-only-${slug}.mp3`;
+  let labelAr = `اقتربت صلاة ${prayerNameAr}`;
 
-  if (tone === "takbeer-voice") {
+  if (tone === "approaching-voice") {
+    alertAudioUrl = `/audio/alerts/approaching-${slug}.mp3`;
+    labelAr = `الله أكبر.. اقتربت صلاة ${prayerNameAr}`;
+  } else if (tone === "takbeer-voice") {
     alertAudioUrl = "/audio/alerts/takbeer-egypt.mp3";
     labelAr = "تكبير (الشيخ عبد الباسط عبد الصمد)";
   } else if (tone === "takbeer-echo") {

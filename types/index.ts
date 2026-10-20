@@ -97,6 +97,7 @@ export interface DailyPrayerSchedule {
 }
 
 export type NotificationToneId =
+  | "approaching-only"
   | "approaching-voice"
   | "takbeer-voice"
   | "takbeer-echo"

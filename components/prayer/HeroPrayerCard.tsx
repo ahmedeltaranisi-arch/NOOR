@@ -286,13 +286,13 @@ export function HeroPrayerCard() {
                       1,
                       Math.round(schedule.nextPrayer.remainingSeconds / 60)
                     ),
-                    "approaching-voice"
+                    "approaching-only"
                   )
                 }
                 className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold text-emerald-100 transition hover:bg-white/20"
               >
                 <Volume2 className="h-3.5 w-3.5 text-gold" />
-                <span>تنبيه: اقتربت صلاة {schedule.nextPrayer.nameAr}</span>
+                <span>اقتربت صلاة {schedule.nextPrayer.nameAr}</span>
               </button>
             </div>
           </div>
