@@ -94,6 +94,11 @@
 }
 
 /* Quranic Text Styling with Tashkeel & Waqf respect */
+.font-quran {
+  font-family: var(--font-amiri-quran), var(--font-amiri), serif;
+  line-height: 1.95 !important;
+}
+
 .quran-verse-text {
   font-family: var(--font-amiri-quran), var(--font-amiri), serif;
   line-height: 2.35;
