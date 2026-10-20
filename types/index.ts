@@ -96,17 +96,36 @@ export interface DailyPrayerSchedule {
   currentPrayerId: PrayerId | null;
 }
 
-export type NotificationToneId = "spiritual-chime" | "takbeer-echo" | "soft-bell" | "silent";
+export type NotificationToneId =
+  | "takbeer-voice"
+  | "approaching-voice"
+  | "takbeer-echo"
+  | "spiritual-chime"
+  | "soft-bell"
+  | "silent";
+
+export type AdhanSoundId =
+  | "abdulbasit"
+  | "makkah"
+  | "madinah"
+  | "egypt-radio"
+  | "afasy"
+  | "takbeer-only";
 
 export interface SinglePrayerAlertConfig {
   enabled: boolean;
   preAlertMinutes: number; // 0, 5, 10, 15, 20, 30
   iqamahMinutes: number; // 0 = disabled, or 10, 15, 20, 30
   tone: NotificationToneId;
+  adhanSound?: AdhanSoundId;
+  voiceAnnouncementEnabled?: boolean;
 }
 
 export interface PrayerNotificationSettings {
   masterEnabled: boolean;
+  adhanEnabled: boolean;
+  selectedAdhanSound: AdhanSoundId;
+  prePrayerVoiceEnabled: boolean;
   browserPermission: "default" | "granted" | "denied" | "unsupported";
   prayers: Record<PrayerId, SinglePrayerAlertConfig>;
 }

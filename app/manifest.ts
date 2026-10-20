@@ -12,5 +12,12 @@ export default function manifest(): MetadataRoute.Manifest {
     lang: "ar",
     background_color: "#FAF8F3",
     theme_color: "#0D6B4B",
+    icons: [
+      {
+        src: "/logo-mark.png",
+        sizes: "512x512",
+        type: "image/png",
+      },
+    ],
   };
 }

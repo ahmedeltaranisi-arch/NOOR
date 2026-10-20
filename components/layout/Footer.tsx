@@ -10,9 +10,13 @@ export function Footer() {
           {/* Brand Info */}
           <div className="md:col-span-2">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-                <span className="font-quran text-xl font-bold text-gold">ن</span>
-              </div>
+              <img
+                src="/logo-mark.png"
+                alt="شعار منصة نور الإسلامية"
+                width={44}
+                height={44}
+                className="h-11 w-11 shrink-0 object-contain drop-shadow-sm"
+              />
               <div>
                 <span className="text-lg font-extrabold text-foreground">نور | NOOR</span>
                 <p className="text-xs text-muted-foreground">

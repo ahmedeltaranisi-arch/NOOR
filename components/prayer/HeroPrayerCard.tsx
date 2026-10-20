@@ -10,9 +10,12 @@ import {
   MapPin,
   MoonStar,
   Navigation,
+  Play,
   Settings2,
+  Square,
   Sunrise,
   Sparkles,
+  Volume2,
 } from "lucide-react";
 import { DEFAULT_USER_LOCATION } from "@/data/egypt-governorates";
 import {
@@ -23,8 +26,12 @@ import {
 } from "@/lib/prayer-times";
 import {
   getSavedLocation,
+  getSavedPrayerNotifications,
   getSavedPrayerSettings,
+  playApproachingPrayerAlert,
+  playFullAdhanAudio,
   saveLocation,
+  stopFullAdhanAudio,
   STORAGE_CHANGE_EVENT,
 } from "@/lib/storage/local-storage";
 import { requestBrowserLocation } from "@/lib/location";
@@ -40,6 +47,7 @@ export function HeroPrayerCard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [gpsBusy, setGpsBusy] = useState(false);
   const [gpsNotice, setGpsNotice] = useState<string | null>(null);
+  const [isAdhanPlaying, setIsAdhanPlaying] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -221,6 +229,63 @@ export function HeroPrayerCard() {
                 </span>
                 <span className="mt-0.5 text-[11px] text-gold">ثانية</span>
               </div>
+            </div>
+
+            {/* Quick Audio Controls: Adhan & Spoken Pre-Prayer Alert */}
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  if (isAdhanPlaying) {
+                    stopFullAdhanAudio();
+                    setIsAdhanPlaying(false);
+                    return;
+                  }
+                  const notif = getSavedPrayerNotifications();
+                  setIsAdhanPlaying(true);
+                  await playFullAdhanAudio(
+                    notif.selectedAdhanSound || "abdulbasit",
+                    schedule.nextPrayer.nameAr,
+                    () => setIsAdhanPlaying(false)
+                  );
+                }}
+                className={cn(
+                  "inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-bold transition",
+                  isAdhanPlaying
+                    ? "bg-red-600 text-white shadow-sm"
+                    : "border border-gold/40 bg-gold/20 text-gold hover:bg-gold hover:text-emerald-950"
+                )}
+              >
+                {isAdhanPlaying ? (
+                  <>
+                    <Square className="h-3 w-3 fill-current" />
+                    <span>إيقاف الأذان</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-3 w-3 fill-current" />
+                    <span>استماع للأذان</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  playApproachingPrayerAlert(
+                    schedule.nextPrayer.nameAr,
+                    Math.max(
+                      1,
+                      Math.round(schedule.nextPrayer.remainingSeconds / 60)
+                    ),
+                    "approaching-voice"
+                  )
+                }
+                className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold text-emerald-100 transition hover:bg-white/20"
+              >
+                <Volume2 className="h-3.5 w-3.5 text-gold" />
+                <span>تنبيه: اقتربت صلاة {schedule.nextPrayer.nameAr}</span>
+              </button>
             </div>
           </div>
         </div>
