@@ -230,6 +230,12 @@ describe("4. التقويم الهجري والقرآن الكريم والأذ�
 
     // Every approaching prayer alert & Salawat/Takbeer file must exist and be non-empty
     const requiredAlerts = [
+      "approaching-only-fajr.mp3",
+      "approaching-only-sunrise.mp3",
+      "approaching-only-dhuhr.mp3",
+      "approaching-only-asr.mp3",
+      "approaching-only-maghrib.mp3",
+      "approaching-only-isha.mp3",
       "approaching-fajr.mp3",
       "approaching-sunrise.mp3",
       "approaching-dhuhr.mp3",
@@ -245,7 +251,7 @@ describe("4. التقويم الهجري والقرآن الكريم والأذ�
       const alertPath = path.join(process.cwd(), "public", "audio", "alerts", filename);
       expect(fs.existsSync(alertPath)).toBe(true);
       const stat = fs.statSync(alertPath);
-      expect(stat.size).toBeGreaterThan(20 * 1024); // > 20 KB
+      expect(stat.size).toBeGreaterThan(8 * 1024); // > 8 KB
     }
   });
 });

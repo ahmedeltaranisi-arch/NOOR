@@ -412,7 +412,7 @@ export function Header() {
             {/* Quick Approaching Prayer Voice Alert Preview — Clean 3/5-Column Grid */}
             <div className="mt-3.5 border-t border-border/70 pt-3">
               <div className="mb-2 text-[11px] font-bold text-muted-foreground">
-                تجربة صوت اقتراب الصلاة («الله أكبر.. اقتربت صلاة ...»):
+                تجربة صوت اقتراب الصلاة («اقتربت صلاة ...» فقط بدون تكبير):
               </div>
               <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5">
                 {(["الفجر", "الظهر", "العصر", "المغرب", "العشاء"] as const).map(
@@ -424,7 +424,7 @@ export function Header() {
                         playApproachingPrayerAlert(
                           pName,
                           10,
-                          "approaching-voice"
+                          "approaching-only"
                         )
                       }
                       className="inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-xl border border-border bg-background px-2 py-1.5 text-[11px] font-bold text-foreground transition hover:border-primary hover:bg-primary/10 hover:text-primary"

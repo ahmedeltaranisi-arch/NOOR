@@ -58,8 +58,12 @@ import {
 
 const TONE_OPTIONS: { id: NotificationToneId; labelAr: string }[] = [
   {
+    id: "approaching-only",
+    labelAr: "صوت ناطق: «اقتربت صلاة ...» فقط (بدون تكبير)",
+  },
+  {
     id: "approaching-voice",
-    labelAr: "تنبيه صوتي ناطق («الله أكبر.. اقتربت صلاة ... حي على الصلاة»)",
+    labelAr: "تكبير + صوت ناطق («الله أكبر.. اقتربت صلاة ...»)",
   },
   {
     id: "takbeer-voice",
@@ -505,10 +509,10 @@ export function SettingsAndAlertsClient() {
               <Mic className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
               <div>
                 <h3 className="text-xs font-extrabold text-foreground sm:text-sm">
-                  تجربة أصوات اقتراب الصلاة والتكبير والصلاة على النبي ﷺ
+                  تجربة أصوات اقتراب الصلاة («اقتربت صلاة ...» فقط بدون تكبير)
                 </h3>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  ملفات صوتية عربية فصيحة ومفحوصة بدقة بالتكبير متبوعًا بـ «اقتربت صلاة الظهر، حي على الصلاة» أو بالصلاة على النبي ﷺ:
+                  استمع مباشرة إلى التنبيه الصوتي الفصيح باقتراب كل صلاة («اقتربت صلاة الظهر»، «اقتربت صلاة العصر»...) بدون تكبير:
                 </p>
               </div>
             </div>
@@ -520,12 +524,12 @@ export function SettingsAndAlertsClient() {
                     key={pName}
                     type="button"
                     onClick={() =>
-                      playApproachingPrayerAlert(pName, 10, "approaching-voice")
+                      playApproachingPrayerAlert(pName, 10, "approaching-only")
                     }
                     className="inline-flex items-center gap-1 rounded-xl border border-primary/30 bg-card px-2.5 py-1.5 text-[11px] font-bold text-primary transition hover:bg-primary hover:text-primary-foreground"
                   >
                     <Volume2 className="h-3 w-3" />
-                    <span>اقتربت {pName}</span>
+                    <span>اقتربت صلاة {pName}</span>
                   </button>
                 )
               )}
@@ -534,8 +538,16 @@ export function SettingsAndAlertsClient() {
 
           <div className="flex flex-wrap items-center gap-2 border-t border-primary/15 pt-3">
             <span className="text-[11px] font-bold text-muted-foreground">
-              أصوات تكبير وصلاة على النبي ﷺ قبل الأذان:
+              أصوات إضافية (مع تكبير أو صلاة على النبي ﷺ):
             </span>
+            <button
+              type="button"
+              onClick={() => playApproachingPrayerAlert("الظهر", 10, "approaching-voice")}
+              className="inline-flex items-center gap-1 rounded-xl border border-gold/40 bg-card px-2.5 py-1 text-[11px] font-bold text-foreground transition hover:border-primary hover:text-primary"
+            >
+              <Play className="h-2.5 w-2.5 fill-current text-primary" />
+              <span>تكبير + اقتربت صلاة الظهر</span>
+            </button>
             <button
               type="button"
               onClick={() => playApproachingPrayerAlert("الظهر", 10, "takbeer-voice")}
