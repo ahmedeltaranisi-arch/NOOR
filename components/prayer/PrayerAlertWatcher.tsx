@@ -1,19 +1,30 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { Bell, Volume2, X } from "lucide-react";
+import { Bell, Square, Volume2, X } from "lucide-react";
 import { calculateDailyPrayerSchedule } from "@/lib/prayer-times";
 import {
+  ADHAN_VOICES_META,
   getSavedLocation,
   getSavedPrayerNotifications,
   getSavedPrayerSettings,
-  playNotificationTone,
+  playApproachingPrayerAlert,
+  playFullAdhanAudio,
+  speakArabicAlert,
+  stopFullAdhanAudio,
 } from "@/lib/storage/local-storage";
+import { AdhanSoundId, NotificationToneId } from "@/types";
 
 interface ActiveAlertBanner {
   id: string;
+  type: "pre" | "adhan" | "iqamah";
+  prayerNameAr: string;
   titleAr: string;
   messageAr: string;
+  sheikhNameAr?: string;
+  tone: NotificationToneId;
+  adhanSound: AdhanSoundId;
+  preMinutes?: number;
 }
 
 export function PrayerAlertWatcher() {
@@ -43,35 +54,70 @@ export function PrayerAlertWatcher() {
         const prayerMs = entry.time.getTime();
         const nowMs = now.getTime();
         const diffSec = Math.round((prayerMs - nowMs) / 1000);
+        const chosenAdhan =
+          cfg.adhanSound || notifSettings.selectedAdhanSound || "abdulbasit";
+        const sheikhMeta =
+          ADHAN_VOICES_META.find((a) => a.id === chosenAdhan) || ADHAN_VOICES_META[0];
 
-        // 1. Pre-prayer alert
+        // 1. Pre-prayer alert ("اقتربت صلاة الظهر / العصر...")
         if (cfg.preAlertMinutes > 0) {
           const preTargetSec = cfg.preAlertMinutes * 60;
           if (Math.abs(diffSec - preTargetSec) <= 25) {
             const key = `${schedule.dateKey}-${entry.id}-pre`;
             if (!triggeredKeysRef.current.has(key)) {
               triggeredKeysRef.current.add(key);
-              triggerNotification(
-                key,
-                `اقترب موعد ${entry.isObligatory ? "صلاة " : ""}${entry.nameAr}`,
-                `يتبقى ${cfg.preAlertMinutes} دقيقة على موعد ${entry.nameAr} في ${loc.cityNameAr}`,
-                cfg.tone
-              );
+              const titleAr = entry.isObligatory
+                ? `اقتربت صلاة ${entry.nameAr}`
+                : `اقترب وقت ${entry.nameAr}`;
+              const messageAr = `اللَّهُ أَكْبَرُ — يتبقى ${cfg.preAlertMinutes} دقائق على موعد ${
+                entry.isObligatory ? `أذان ${entry.nameAr}` : entry.nameAr
+              } في ${loc.cityNameAr}`;
+
+              setBanner({
+                id: key,
+                type: "pre",
+                prayerNameAr: entry.nameAr,
+                titleAr,
+                messageAr,
+                tone: cfg.tone,
+                adhanSound: chosenAdhan,
+                preMinutes: cfg.preAlertMinutes,
+              });
+
+              playApproachingPrayerAlert(entry.nameAr, cfg.preAlertMinutes, cfg.tone);
+              sendBrowserNotification(titleAr, messageAr);
             }
           }
         }
 
-        // 2. Exact prayer time alert
+        // 2. Exact prayer time alert (Full Adhan Audio)
         if (Math.abs(diffSec) <= 25) {
           const key = `${schedule.dateKey}-${entry.id}-exact`;
           if (!triggeredKeysRef.current.has(key)) {
             triggeredKeysRef.current.add(key);
-            triggerNotification(
-              key,
-              `حان الآن موعد ${entry.isObligatory ? "صلاة " : ""}${entry.nameAr}`,
-              `حسب التوقيت المحلي لمدينة ${loc.cityNameAr} (${loc.governorateNameAr})`,
-              cfg.tone
-            );
+            const titleAr = entry.isObligatory
+              ? `حان الآن موعد أذان صلاة ${entry.nameAr}`
+              : `حان الآن وقت الشروق`;
+            const messageAr = `حسب التوقيت المحلي لمدينة ${loc.cityNameAr} (${loc.governorateNameAr})`;
+
+            setBanner({
+              id: key,
+              type: "adhan",
+              prayerNameAr: entry.nameAr,
+              titleAr,
+              messageAr,
+              sheikhNameAr: entry.isObligatory ? sheikhMeta.nameAr : undefined,
+              tone: cfg.tone,
+              adhanSound: chosenAdhan,
+            });
+
+            if (entry.isObligatory && notifSettings.adhanEnabled !== false) {
+              playFullAdhanAudio(chosenAdhan, entry.nameAr);
+            } else {
+              playApproachingPrayerAlert(entry.nameAr, 0, cfg.tone);
+            }
+
+            sendBrowserNotification(titleAr, messageAr);
           }
         }
 
@@ -82,27 +128,30 @@ export function PrayerAlertWatcher() {
             const key = `${schedule.dateKey}-${entry.id}-iqamah`;
             if (!triggeredKeysRef.current.has(key)) {
               triggeredKeysRef.current.add(key);
-              triggerNotification(
-                key,
-                `تذكير بإقامة صلاة ${entry.nameAr}`,
-                `مضى ${cfg.iqamahMinutes} دقيقة على أذان ${entry.nameAr}`,
-                cfg.tone
+              const titleAr = `تذكير بإقامة صلاة ${entry.nameAr}`;
+              const messageAr = `قد قامت الصلاة — مضى ${cfg.iqamahMinutes} دقيقة على أذان ${entry.nameAr}`;
+
+              setBanner({
+                id: key,
+                type: "iqamah",
+                prayerNameAr: entry.nameAr,
+                titleAr,
+                messageAr,
+                tone: cfg.tone,
+                adhanSound: chosenAdhan,
+              });
+
+              speakArabicAlert(
+                `اللَّهُ أَكْبَرُ، اللَّهُ أَكْبَرُ. تذكير بإقامة صلاة ${entry.nameAr}. قَدْ قَامَتِ الصَّلَاةُ، قَدْ قَامَتِ الصَّلَاةُ.`
               );
+              sendBrowserNotification(titleAr, messageAr);
             }
           }
         }
       }
     };
 
-    const triggerNotification = (
-      id: string,
-      titleAr: string,
-      messageAr: string,
-      tone: Parameters<typeof playNotificationTone>[0]
-    ) => {
-      setBanner({ id, titleAr, messageAr });
-      playNotificationTone(tone);
-
+    const sendBrowserNotification = (titleAr: string, bodyAr: string) => {
       if (
         typeof window !== "undefined" &&
         "Notification" in window &&
@@ -110,7 +159,8 @@ export function PrayerAlertWatcher() {
       ) {
         try {
           new window.Notification(titleAr, {
-            body: messageAr,
+            body: bodyAr,
+            icon: "/logo-mark.png",
             lang: "ar",
             dir: "rtl",
           });
@@ -127,46 +177,74 @@ export function PrayerAlertWatcher() {
 
   if (!banner) return null;
 
+  const handleClose = () => {
+    stopFullAdhanAudio();
+    setBanner(null);
+  };
+
+  const handleReplay = () => {
+    if (banner.type === "adhan") {
+      playFullAdhanAudio(banner.adhanSound, banner.prayerNameAr);
+    } else {
+      playApproachingPrayerAlert(
+        banner.prayerNameAr,
+        banner.preMinutes || 10,
+        banner.tone
+      );
+    }
+  };
+
   return (
     <div
       role="status"
       aria-live="polite"
-      className="fixed bottom-24 left-4 right-4 z-50 mx-auto max-w-md rounded-2xl border border-gold/40 bg-card p-4 shadow-gold md:bottom-6"
+      className="fixed bottom-20 left-3 right-3 z-50 mx-auto max-w-md rounded-3xl border-2 border-gold/60 bg-card/95 p-4 shadow-2xl backdrop-blur-md md:bottom-6"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
-            <Bell className="h-5 w-5 animate-bounce" />
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary">
+            <Bell className="h-5 w-5 animate-bounce text-gold" />
           </div>
           <div>
-            <h4 className="font-bold text-foreground">{banner.titleAr}</h4>
-            <p className="mt-0.5 text-sm text-muted-foreground">{banner.messageAr}</p>
+            <h4 className="text-sm font-extrabold text-foreground sm:text-base">
+              {banner.titleAr}
+            </h4>
+            <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+              {banner.messageAr}
+            </p>
+            {banner.sheikhNameAr && (
+              <p className="mt-1 text-[11px] font-bold text-primary">
+                المؤذن: {banner.sheikhNameAr}
+              </p>
+            )}
           </div>
         </div>
         <button
           type="button"
-          onClick={() => setBanner(null)}
-          aria-label="إغلاق التنبيه"
-          className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+          onClick={handleClose}
+          aria-label="إغلاق وإيقاف الصوت"
+          className="rounded-xl p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
         >
           <X className="h-4 w-4" />
         </button>
       </div>
-      <div className="mt-3 flex items-center justify-end gap-2">
+
+      <div className="mt-3.5 flex items-center justify-end gap-2">
         <button
           type="button"
-          onClick={() => playNotificationTone("spiritual-chime")}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground hover:bg-secondary/80"
+          onClick={handleReplay}
+          className="inline-flex items-center gap-1.5 rounded-xl bg-secondary px-3 py-1.5 text-xs font-bold text-secondary-foreground hover:bg-secondary/80"
         >
-          <Volume2 className="h-3.5 w-3.5" />
-          <span>إعادة الصوت</span>
+          <Volume2 className="h-3.5 w-3.5 text-primary" />
+          <span>{banner.type === "adhan" ? "إعادة الأذان" : "إعادة التنبيه الصوتي"}</span>
         </button>
         <button
           type="button"
-          onClick={() => setBanner(null)}
-          className="inline-flex items-center rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground"
+          onClick={handleClose}
+          className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-1.5 text-xs font-bold text-primary-foreground"
         >
-          حسناً
+          <Square className="h-3 w-3 fill-current" />
+          <span>إيقاف وإغلاق</span>
         </button>
       </div>
     </div>

@@ -2,6 +2,7 @@ import { DEFAULT_USER_LOCATION } from "@/data/egypt-governorates";
 import { DEFAULT_CALCULATION_SETTINGS } from "@/lib/prayer-times";
 import { getLocalDateKey } from "@/lib/utils";
 import {
+  AdhanSoundId,
   AdhkarDailyProgress,
   DailyWirdSettings,
   LastReadPosition,
@@ -85,17 +86,121 @@ export function savePrayerSettings(settings: PrayerCalculationSettings): void {
   writeStorage(STORAGE_KEYS.PRAYER_SETTINGS, settings);
 }
 
-// 3. Prayer Notifications
+// 3. Prayer Notifications & Adhan Audio
+export const ADHAN_VOICES_META: {
+  id: AdhanSoundId;
+  nameAr: string;
+  styleAr: string;
+  audioUrls: string[];
+}[] = [
+  {
+    id: "abdulbasit",
+    nameAr: "الشيخ عبد الباسط عبد الصمد",
+    styleAr: "أذان مصري خاشع ومؤثر",
+    audioUrls: [
+      "https://www.islamcan.com/audio/adhan/azan1.mp3",
+      "https://cdn.aladhan.com/audio/adhans/a1.mp3",
+    ],
+  },
+  {
+    id: "egypt-radio",
+    nameAr: "أذان المدرسة المصرية (إذاعة القرآن الكريم)",
+    styleAr: "مقام الراست المصري الأصيل",
+    audioUrls: [
+      "https://www.islamcan.com/audio/adhan/azan6.mp3",
+      "https://www.islamcan.com/audio/adhan/azan1.mp3",
+    ],
+  },
+  {
+    id: "makkah",
+    nameAr: "أذان الحرم المكي الشريف (الشيخ علي أحمد ملا)",
+    styleAr: "المسجد الحرام - مكة المكرمة",
+    audioUrls: [
+      "https://www.islamcan.com/audio/adhan/azan2.mp3",
+      "https://cdn.aladhan.com/audio/adhans/a2.mp3",
+    ],
+  },
+  {
+    id: "madinah",
+    nameAr: "أذان المسجد النبوي الشريف",
+    styleAr: "المدينة المنورة",
+    audioUrls: [
+      "https://www.islamcan.com/audio/adhan/azan3.mp3",
+      "https://cdn.aladhan.com/audio/adhans/a3.mp3",
+    ],
+  },
+  {
+    id: "afasy",
+    nameAr: "الشيخ مشاري راشد العفاسي",
+    styleAr: "أذان نديّ عذب",
+    audioUrls: [
+      "https://www.islamcan.com/audio/adhan/azan16.mp3",
+      "https://www.islamcan.com/audio/adhan/azan2.mp3",
+    ],
+  },
+  {
+    id: "takbeer-only",
+    nameAr: "تكبير صوتي مختصر فقط (بدون أذان كامل)",
+    styleAr: "الله أكبر الله أكبر + تنبيه ناطق",
+    audioUrls: [],
+  },
+];
+
 export const DEFAULT_PRAYER_NOTIFICATIONS: PrayerNotificationSettings = {
   masterEnabled: true,
+  adhanEnabled: true,
+  selectedAdhanSound: "abdulbasit",
+  prePrayerVoiceEnabled: true,
   browserPermission: "default",
   prayers: {
-    fajr: { enabled: true, preAlertMinutes: 15, iqamahMinutes: 20, tone: "takbeer-echo" },
-    sunrise: { enabled: false, preAlertMinutes: 10, iqamahMinutes: 0, tone: "soft-bell" },
-    dhuhr: { enabled: true, preAlertMinutes: 10, iqamahMinutes: 15, tone: "spiritual-chime" },
-    asr: { enabled: true, preAlertMinutes: 10, iqamahMinutes: 15, tone: "spiritual-chime" },
-    maghrib: { enabled: true, preAlertMinutes: 10, iqamahMinutes: 10, tone: "takbeer-echo" },
-    isha: { enabled: true, preAlertMinutes: 10, iqamahMinutes: 15, tone: "spiritual-chime" },
+    fajr: {
+      enabled: true,
+      preAlertMinutes: 15,
+      iqamahMinutes: 20,
+      tone: "approaching-voice",
+      adhanSound: "abdulbasit",
+      voiceAnnouncementEnabled: true,
+    },
+    sunrise: {
+      enabled: false,
+      preAlertMinutes: 10,
+      iqamahMinutes: 0,
+      tone: "soft-bell",
+      adhanSound: "takbeer-only",
+      voiceAnnouncementEnabled: true,
+    },
+    dhuhr: {
+      enabled: true,
+      preAlertMinutes: 10,
+      iqamahMinutes: 15,
+      tone: "approaching-voice",
+      adhanSound: "abdulbasit",
+      voiceAnnouncementEnabled: true,
+    },
+    asr: {
+      enabled: true,
+      preAlertMinutes: 10,
+      iqamahMinutes: 15,
+      tone: "approaching-voice",
+      adhanSound: "abdulbasit",
+      voiceAnnouncementEnabled: true,
+    },
+    maghrib: {
+      enabled: true,
+      preAlertMinutes: 10,
+      iqamahMinutes: 10,
+      tone: "approaching-voice",
+      adhanSound: "abdulbasit",
+      voiceAnnouncementEnabled: true,
+    },
+    isha: {
+      enabled: true,
+      preAlertMinutes: 10,
+      iqamahMinutes: 15,
+      tone: "approaching-voice",
+      adhanSound: "abdulbasit",
+      voiceAnnouncementEnabled: true,
+    },
   },
 };
 
@@ -118,16 +223,149 @@ export function savePrayerNotifications(settings: PrayerNotificationSettings): v
   writeStorage(STORAGE_KEYS.PRAYER_NOTIFICATIONS, settings);
 }
 
-//Synthesizes legal, pleasant spiritual notification tones via Web Audio API
+let activeAdhanAudio: HTMLAudioElement | null = null;
+
+export function stopFullAdhanAudio(): void {
+  if (activeAdhanAudio) {
+    try {
+      activeAdhanAudio.pause();
+      activeAdhanAudio.currentTime = 0;
+    } catch {
+      // ignore
+    }
+    activeAdhanAudio = null;
+  }
+  if (isBrowser() && "speechSynthesis" in window) {
+    try {
+      window.speechSynthesis.cancel();
+    } catch {
+      // ignore
+    }
+  }
+}
+
+/**
+ * Speaks an Arabic notification phrase (e.g. "الله أكبر الله أكبر، اقتربت صلاة الظهر")
+ * using the browser's Arabic SpeechSynthesis engine.
+ */
+export function speakArabicAlert(text: string): void {
+  if (!isBrowser() || !("speechSynthesis" in window)) return;
+  try {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "ar-EG";
+    utterance.rate = 0.92;
+    utterance.pitch = 1.0;
+
+    const voices = window.speechSynthesis.getVoices();
+    const arabicVoice =
+      voices.find((v) => v.lang.startsWith("ar-EG")) ||
+      voices.find((v) => v.lang.startsWith("ar-SA")) ||
+      voices.find((v) => v.lang.startsWith("ar"));
+
+    if (arabicVoice) {
+      utterance.voice = arabicVoice;
+    }
+
+    window.speechSynthesis.speak(utterance);
+  } catch {
+    // ignore speech synthesis restrictions
+  }
+}
+
+/**
+ * Plays a pre-prayer approaching alert: e.g. "الله أكبر الله أكبر.. اقتربت صلاة الظهر"
+ */
+export function playApproachingPrayerAlert(
+  prayerNameAr: string,
+  preMinutes = 10,
+  tone: NotificationToneId = "approaching-voice"
+): void {
+  if (!isBrowser() || tone === "silent") return;
+
+  playNotificationTone(tone);
+
+  if (tone === "approaching-voice" || tone === "takbeer-voice") {
+    const text =
+      tone === "takbeer-voice"
+        ? `اللَّهُ أَكْبَرُ، اللَّهُ أَكْبَرُ. اقتربت صلاة ${prayerNameAr}`
+        : preMinutes > 0
+        ? `اللَّهُ أَكْبَرُ، اللَّهُ أَكْبَرُ. اقتربت صلاة ${prayerNameAr}، يتبقى ${preMinutes} دقائق على موعد الأذان`
+        : `اللَّهُ أَكْبَرُ، اللَّهُ أَكْبَرُ. اقتربت صلاة ${prayerNameAr}`;
+
+    setTimeout(() => {
+      speakArabicAlert(text);
+    }, 350);
+  }
+}
+
+/**
+ * Plays the full Adhan audio for a Sheikh at prayer time, with fallback to spoken Takbeer/Adhan.
+ */
+export async function playFullAdhanAudio(
+  adhanId: AdhanSoundId = "abdulbasit",
+  prayerNameAr = "الظهر",
+  onEnded?: () => void
+): Promise<void> {
+  if (!isBrowser()) return;
+  stopFullAdhanAudio();
+
+  const meta =
+    ADHAN_VOICES_META.find((a) => a.id === adhanId) || ADHAN_VOICES_META[0];
+
+  if (adhanId === "takbeer-only" || meta.audioUrls.length === 0) {
+    playNotificationTone("takbeer-echo");
+    setTimeout(() => {
+      speakArabicAlert(
+        `اللَّهُ أَكْبَرُ، اللَّهُ أَكْبَرُ. حان الآن موعد أذان صلاة ${prayerNameAr}. حَيَّ عَلَى الصَّلَاةِ، حَيَّ عَلَى الْفَلَاحِ.`
+      );
+      if (onEnded) setTimeout(onEnded, 6000);
+    }, 500);
+    return;
+  }
+
+  for (const url of meta.audioUrls) {
+    try {
+      const audio = new Audio(url);
+      activeAdhanAudio = audio;
+      audio.onended = () => {
+        activeAdhanAudio = null;
+        if (onEnded) onEnded();
+      };
+      await audio.play();
+      return;
+    } catch {
+      // try next fallback URL
+    }
+  }
+
+  // Fallback if offline or external audio blocked
+  playNotificationTone("takbeer-echo");
+  setTimeout(() => {
+    speakArabicAlert(
+      `اللَّهُ أَكْبَرُ، اللَّهُ أَكْبَرُ، اللَّهُ أَكْبَرُ، اللَّهُ أَكْبَرُ. حان الآن موعد أذان صلاة ${prayerNameAr}. أَشْهَدُ أَنْ لَا إِلَهَ إِلَّا اللَّهُ، أَشْهَدُ أَنَّ مُحَمَّدًا رَسُولُ اللَّهِ، حَيَّ عَلَى الصَّلَاةِ، حَيَّ عَلَى الْفَلَاحِ، اللَّهُ أَكْبَرُ اللَّهُ أَكْبَرُ، لَا إِلَهَ إِلَّا اللَّهُ.`
+    );
+    if (onEnded) setTimeout(onEnded, 9000);
+  }, 400);
+}
+
+// Synthesizes legal, pleasant spiritual notification tones via Web Audio API
 export function playNotificationTone(tone: NotificationToneId): void {
   if (!isBrowser() || tone === "silent") return;
   try {
-    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const AudioCtx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (!AudioCtx) return;
     const ctx = new AudioCtx();
     const now = ctx.currentTime;
 
-    const playNote = (freq: number, startTime: number, duration: number, gainPeak = 0.2) => {
+    const playNote = (
+      freq: number,
+      startTime: number,
+      duration: number,
+      gainPeak = 0.2
+    ) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = "sine";
@@ -147,11 +385,15 @@ export function playNotificationTone(tone: NotificationToneId): void {
       playNote(528, now, 0.5, 0.18);
       playNote(660, now + 0.25, 0.6, 0.18);
       playNote(792, now + 0.5, 0.9, 0.2);
-    } else if (tone === "takbeer-echo") {
-      playNote(440, now, 0.4, 0.2);
-      playNote(587.33, now + 0.22, 0.5, 0.22);
-      playNote(659.25, now + 0.48, 0.5, 0.2);
-      playNote(880, now + 0.75, 1.0, 0.24);
+    } else if (
+      tone === "takbeer-echo" ||
+      tone === "takbeer-voice" ||
+      tone === "approaching-voice"
+    ) {
+      playNote(440, now, 0.35, 0.2);
+      playNote(587.33, now + 0.2, 0.45, 0.22);
+      playNote(659.25, now + 0.42, 0.45, 0.2);
+      playNote(880, now + 0.65, 0.9, 0.24);
     } else if (tone === "soft-bell") {
       playNote(587.33, now, 0.8, 0.16);
       playNote(880, now + 0.3, 1.0, 0.14);

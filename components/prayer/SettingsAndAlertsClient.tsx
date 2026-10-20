@@ -6,12 +6,13 @@ import {
   Bell,
   BookOpen,
   CheckCircle2,
-  Download,
-  Info,
   MapPin,
+  Mic,
   Palette,
+  Play,
   ShieldCheck,
   Sliders,
+  Square,
   Trash2,
   Volume2,
 } from "lucide-react";
@@ -23,16 +24,18 @@ import {
   PRAYER_NAMES_AR,
 } from "@/lib/prayer-times";
 import {
+  ADHAN_VOICES_META,
   clearAllLocalData,
   DEFAULT_PRAYER_NOTIFICATIONS,
-  exportAllLocalData,
   getSavedLocation,
   getSavedPrayerNotifications,
   getSavedPrayerSettings,
-  playNotificationTone,
+  playApproachingPrayerAlert,
+  playFullAdhanAudio,
   saveLocation,
   savePrayerNotifications,
   savePrayerSettings,
+  stopFullAdhanAudio,
   STORAGE_CHANGE_EVENT,
 } from "@/lib/storage/local-storage";
 import { clearIndexedDBData } from "@/lib/storage/indexed-db";
@@ -40,6 +43,7 @@ import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { LocationSelectorModal } from "@/components/prayer/LocationSelectorModal";
 import { cn } from "@/lib/utils";
 import {
+  AdhanSoundId,
   CalculationMethodId,
   MadhabId,
   NotificationToneId,
@@ -51,10 +55,30 @@ import {
 } from "@/types";
 
 const TONE_OPTIONS: { id: NotificationToneId; labelAr: string }[] = [
-  { id: "takbeer-echo", labelAr: "صدى التكبير الهادئ (مولد صوتيًا)" },
-  { id: "spiritual-chime", labelAr: "رنين روحاني هادئ" },
-  { id: "soft-bell", labelAr: "تنبيه جرس خفيف" },
-  { id: "silent", labelAr: "صامت (إشعار مرئي فقط)" },
+  {
+    id: "approaching-voice",
+    labelAr: "تنبيه ناطق («الله أكبر.. اقتربت صلاة ...»)",
+  },
+  {
+    id: "takbeer-voice",
+    labelAr: "تكبير صوتي مع اسم الصلاة",
+  },
+  {
+    id: "takbeer-echo",
+    labelAr: "صدى التكبير الهادئ",
+  },
+  {
+    id: "spiritual-chime",
+    labelAr: "رنين روحاني هادئ",
+  },
+  {
+    id: "soft-bell",
+    labelAr: "تنبيه جرس خفيف",
+  },
+  {
+    id: "silent",
+    labelAr: "صامت (إشعار مرئي فقط)",
+  },
 ];
 
 export function SettingsAndAlertsClient() {
@@ -69,6 +93,7 @@ export function SettingsAndAlertsClient() {
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [playingAdhanPreview, setPlayingAdhanPreview] = useState<string | null>(null);
 
   useEffect(() => {
     setLocation(getSavedLocation());
@@ -87,7 +112,10 @@ export function SettingsAndAlertsClient() {
       setNotifSettings(getSavedPrayerNotifications());
     };
     window.addEventListener(STORAGE_CHANGE_EVENT, sync);
-    return () => window.removeEventListener(STORAGE_CHANGE_EVENT, sync);
+    return () => {
+      window.removeEventListener(STORAGE_CHANGE_EVENT, sync);
+      stopFullAdhanAudio();
+    };
   }, []);
 
   const showToast = (msg: string) => {
@@ -114,12 +142,13 @@ export function SettingsAndAlertsClient() {
 
       if (perm === "granted") {
         new window.Notification("منصة نور | NOOR الإسلامية", {
-          body: "تم تفعيل إشعارات مواقيت الصلاة بنجاح!",
+          body: "تم تفعيل إشعارات مواقيت الصلاة والأذان بنجاح!",
+          icon: "/logo-mark.png",
           lang: "ar",
           dir: "rtl",
         });
-        playNotificationTone("spiritual-chime");
-        showToast("تم تفعيل إشعارات المتصفح بنجاح!");
+        playApproachingPrayerAlert("الظهر", 10, "approaching-voice");
+        showToast("تم تفعيل إشعارات المتصفح والتنبيه الصوتي بنجاح!");
       } else {
         showToast("لم يتم منح إذن الإشعارات من المتصفح.");
       }
@@ -146,21 +175,39 @@ export function SettingsAndAlertsClient() {
     setNotifSettings(updated);
   };
 
-  const handleExportData = () => {
-    const data = exportAllLocalData();
-    const blob = new Blob([JSON.stringify(data, null, 2)], {
-      type: "application/json",
+  const handleSelectDefaultAdhan = (adhanId: AdhanSoundId) => {
+    const updatedPrayers = { ...notifSettings.prayers };
+    (["fajr", "dhuhr", "asr", "maghrib", "isha"] as PrayerId[]).forEach((pId) => {
+      updatedPrayers[pId] = {
+        ...updatedPrayers[pId],
+        adhanSound: adhanId,
+      };
     });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `noor-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast("تم تصدير نسخة احتياطية من بياناتك المحلية بنجاح.");
+
+    const updated: PrayerNotificationSettings = {
+      ...notifSettings,
+      selectedAdhanSound: adhanId,
+      prayers: updatedPrayers,
+    };
+    savePrayerNotifications(updated);
+    setNotifSettings(updated);
+    showToast("تم تعميم صوت المؤذن المختار على الصلوات الخمس.");
+  };
+
+  const handlePreviewAdhan = async (adhanId: AdhanSoundId, prayerNameAr = "الظهر") => {
+    if (playingAdhanPreview === adhanId) {
+      stopFullAdhanAudio();
+      setPlayingAdhanPreview(null);
+      return;
+    }
+    setPlayingAdhanPreview(adhanId);
+    await playFullAdhanAudio(adhanId, prayerNameAr, () => {
+      setPlayingAdhanPreview(null);
+    });
   };
 
   const handleClearAllData = async () => {
+    stopFullAdhanAudio();
     clearAllLocalData();
     await clearIndexedDBData();
     setLocation(DEFAULT_USER_LOCATION);
@@ -216,37 +263,37 @@ export function SettingsAndAlertsClient() {
       )}
 
       {/* Page Header */}
-      <div className="rounded-3xl border border-border bg-card p-6 shadow-soft sm:p-8">
+      <div className="rounded-3xl border border-border bg-card p-5 shadow-soft sm:p-8">
         <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3.5 py-1 text-xs font-bold text-primary">
           <Sliders className="h-3.5 w-3.5" />
-          <span>إدارة التنبيهات والتفضيلات والخصوصية</span>
+          <span>إدارة الأذان والتنبيهات الصوتية والتفضيلات</span>
         </div>
         <h1 className="mt-2 text-2xl font-extrabold text-foreground sm:text-3xl">
-          إعدادات الموقع ونظام تنبيهات الصلاة
+          إعدادات الموقع والأذان وتنبيهات الصلاة
         </h1>
         <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-          خصص تنبيهات كل صلاة على حدة، وطريقة الحساب الفلكي، والمظهر، وإدارة بياناتك المحلية
+          اختر صوت المؤذن المفضل، وفعّل التنبيه الصوتي الناطق باقتراب كل صلاة («اقتربت صلاة الظهر»، «اقتربت صلاة العصر»...)
         </p>
       </div>
 
-      {/* SECTION 1: Prayer Notifications System */}
-      <section className="space-y-6 rounded-3xl border border-border bg-card p-6 shadow-soft sm:p-8">
+      {/* SECTION 1: Adhan Sheikhs & Voice Alerts */}
+      <section className="space-y-6 rounded-3xl border border-border bg-card p-5 shadow-soft sm:p-8">
         <div className="flex flex-col justify-between gap-4 border-b border-border pb-5 sm:flex-row sm:items-center">
           <div className="flex items-start gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <Bell className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-xl font-extrabold text-foreground">
-                ١. نظام التنبيهات للصلوات الخمس والإقامة
+              <h2 className="text-lg font-extrabold text-foreground sm:text-xl">
+                ١. أصوات الأذان والتنبيه الناطق باقتراب الصلاة
               </h2>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                إعدادات مستقلة لكل صلاة مع تنبيه قبل الأذان وتذكير بموعد الإقامة
+                أذان كامل بأصوات كبار الشيوخ عند دخول الوقت + تنبيه بالتكبير واسم الصلاة قبل الأذان
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
             <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-border bg-background px-3.5 py-2 text-xs font-bold">
               <input
                 type="checkbox"
@@ -258,7 +305,7 @@ export function SettingsAndAlertsClient() {
                 }}
                 className="h-4 w-4 accent-primary"
               />
-              <span>تفعيل نظام التنبيهات العام</span>
+              <span>تفعيل التنبيهات والأذان</span>
             </label>
 
             <button
@@ -276,13 +323,138 @@ export function SettingsAndAlertsClient() {
           </div>
         </div>
 
-        {/* Browser Limitations Transparent Notice */}
-        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs leading-relaxed text-amber-950 dark:text-amber-200">
-          <div className="flex items-start gap-2.5">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+        {/* Sheikh Adhan Voice Selector Grid */}
+        <div className="rounded-2xl border border-gold/30 bg-muted/30 p-4 sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <strong>توضيح شفاف حول قيود متصفحات الويب: </strong>
-              تعمل التنبيهات الصوتية وإشعارات الصلاة بدقة طالما أن تبويب الموقع مفتوح في المتصفح وبعد تفاعلك الأول مع الصفحة. تمنع متصفحات الهواتف والحواسيب الحديثة تشغيل الصوت تلقائيًا في الخلفية إذا تم إغلاق المتصفح بالكامل، حفاظًا على موارد الجهاز وخصوصية المستخدم.
+              <h3 className="text-sm font-extrabold text-foreground sm:text-base">
+                اختر صوت المؤذن لرفع الأذان عند حلول وقت الصلاة
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                يمكنك الاستماع لمعاينة صوت كل شيخ أو اختيار مؤذن مختلف لكل صلاة بالأسفل
+              </p>
+            </div>
+            {playingAdhanPreview && (
+              <button
+                type="button"
+                onClick={() => {
+                  stopFullAdhanAudio();
+                  setPlayingAdhanPreview(null);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-red-700"
+              >
+                <Square className="h-3 w-3 fill-current" />
+                <span>إيقاف معاينة الأذان</span>
+              </button>
+            )}
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {ADHAN_VOICES_META.map((voice) => {
+              const isSelected = notifSettings.selectedAdhanSound === voice.id;
+              const isPlayingThis = playingAdhanPreview === voice.id;
+
+              return (
+                <div
+                  key={voice.id}
+                  className={cn(
+                    "flex flex-col justify-between rounded-2xl border p-3.5 transition-all",
+                    isSelected
+                      ? "border-primary bg-primary/10 shadow-sm"
+                      : "border-border bg-card hover:border-primary/40"
+                  )}
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectDefaultAdhan(voice.id)}
+                        className="text-right text-xs font-extrabold text-foreground sm:text-sm"
+                      >
+                        {voice.nameAr}
+                      </button>
+                      {isSelected && (
+                        <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground">
+                          المختار
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {voice.styleAr}
+                    </p>
+                  </div>
+
+                  <div className="mt-3 flex items-center gap-2 border-t border-border/60 pt-2.5">
+                    <button
+                      type="button"
+                      onClick={() => handlePreviewAdhan(voice.id, "الظهر")}
+                      className={cn(
+                        "inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition",
+                        isPlayingThis
+                          ? "bg-red-600 text-white"
+                          : "bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground"
+                      )}
+                    >
+                      {isPlayingThis ? (
+                        <>
+                          <Square className="h-3 w-3 fill-current" />
+                          <span>إيقاف الصوت</span>
+                        </>
+                      ) : (
+                        <>
+                          <Play className="h-3 w-3 fill-current" />
+                          <span>استماع للأذان</span>
+                        </>
+                      )}
+                    </button>
+
+                    {!isSelected && (
+                      <button
+                        type="button"
+                        onClick={() => handleSelectDefaultAdhan(voice.id)}
+                        className="rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground hover:border-primary hover:text-primary"
+                      >
+                        اعتماد
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Quick Voice Alert Demo Bar ("اقتربت صلاة الظهر" / "اقتربت صلاة العصر") */}
+        <div className="rounded-2xl border border-primary/25 bg-primary/5 p-4">
+          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+            <div className="flex items-start gap-2.5">
+              <Mic className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+              <div>
+                <h3 className="text-xs font-extrabold text-foreground sm:text-sm">
+                  تجربة التنبيهات الصوتية الناطقة قبل كل صلاة
+                </h3>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  ينطق المتصفح بالتكبير متبوعًا بـ «اقتربت صلاة الظهر»، «اقتربت صلاة العصر» وغيرها حسب المدة التي تحددها قبل الأذان:
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5">
+              {(["الفجر", "الظهر", "العصر", "المغرب", "العشاء"] as const).map(
+                (pName) => (
+                  <button
+                    key={pName}
+                    type="button"
+                    onClick={() =>
+                      playApproachingPrayerAlert(pName, 10, "approaching-voice")
+                    }
+                    className="inline-flex items-center gap-1 rounded-xl border border-primary/30 bg-card px-2.5 py-1.5 text-[11px] font-bold text-primary transition hover:bg-primary hover:text-primary-foreground"
+                  >
+                    <Volume2 className="h-3 w-3" />
+                    <span>اقتربت {pName}</span>
+                  </button>
+                )
+              )}
             </div>
           </div>
         </div>
@@ -293,6 +465,9 @@ export function SettingsAndAlertsClient() {
             (prayerId) => {
               const cfg = notifSettings.prayers[prayerId];
               const isSunrise = prayerId === "sunrise";
+              const pNameAr = PRAYER_NAMES_AR[prayerId];
+              const currentAdhan =
+                cfg.adhanSound || notifSettings.selectedAdhanSound || "abdulbasit";
 
               return (
                 <div
@@ -304,7 +479,7 @@ export function SettingsAndAlertsClient() {
                       : "border-border bg-muted/20 opacity-75"
                   )}
                 >
-                  <div className="flex items-center justify-between border-b border-border/60 pb-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-3">
                     <div className="flex items-center gap-2">
                       <input
                         type="checkbox"
@@ -321,25 +496,44 @@ export function SettingsAndAlertsClient() {
                         htmlFor={`toggle-${prayerId}`}
                         className="cursor-pointer text-base font-extrabold text-foreground"
                       >
-                        {isSunrise ? "وقت الشروق" : `صلاة ${PRAYER_NAMES_AR[prayerId]}`}
+                        {isSunrise ? "وقت الشروق" : `صلاة ${pNameAr}`}
                       </label>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => playNotificationTone(cfg.tone)}
-                      className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1 text-[11px] font-bold text-primary hover:bg-muted"
-                    >
-                      <Volume2 className="h-3 w-3" />
-                      <span>معاينة الصوت</span>
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          playApproachingPrayerAlert(
+                            pNameAr,
+                            cfg.preAlertMinutes || 10,
+                            cfg.tone
+                          )
+                        }
+                        className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1 text-[11px] font-bold text-primary hover:bg-muted"
+                      >
+                        <Volume2 className="h-3 w-3" />
+                        <span>تجربة اقتراب {pNameAr}</span>
+                      </button>
+
+                      {!isSunrise && (
+                        <button
+                          type="button"
+                          onClick={() => handlePreviewAdhan(currentAdhan, pNameAr)}
+                          className="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary hover:bg-primary hover:text-primary-foreground"
+                        >
+                          <Play className="h-3 w-3 fill-current" />
+                          <span>الأذان</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {/* Pre-prayer alert */}
                     <div>
                       <label className="mb-1 block text-[11px] font-bold text-muted-foreground">
-                        التنبيه قبل الموعد
+                        التنبيه قبل الأذان («اقتربت صلاة {pNameAr}»)
                       </label>
                       <select
                         value={cfg.preAlertMinutes}
@@ -359,33 +553,10 @@ export function SettingsAndAlertsClient() {
                       </select>
                     </div>
 
-                    {/* Iqamah reminder */}
-                    <div>
-                      <label className="mb-1 block text-[11px] font-bold text-muted-foreground">
-                        تذكير الإقامة
-                      </label>
-                      <select
-                        disabled={isSunrise}
-                        value={isSunrise ? 0 : cfg.iqamahMinutes}
-                        onChange={(e) =>
-                          updateSinglePrayerNotif(prayerId, {
-                            iqamahMinutes: Number(e.target.value),
-                          })
-                        }
-                        className="w-full rounded-xl border border-border bg-card px-2.5 py-1.5 text-xs font-bold text-foreground disabled:opacity-40"
-                      >
-                        <option value={0}>غير مفعل</option>
-                        <option value={10}>بعد ١٠ دقائق</option>
-                        <option value={15}>بعد ١٥ دقيقة</option>
-                        <option value={20}>بعد ٢٠ دقيقة</option>
-                        <option value={30}>بعد ٣٠ دقيقة</option>
-                      </select>
-                    </div>
-
                     {/* Tone choice */}
                     <div>
                       <label className="mb-1 block text-[11px] font-bold text-muted-foreground">
-                        نغمة التنبيه
+                        نوع تنبيه اقتراب الصلاة
                       </label>
                       <select
                         value={cfg.tone}
@@ -403,11 +574,70 @@ export function SettingsAndAlertsClient() {
                         ))}
                       </select>
                     </div>
+
+                    {/* Sheikh Adhan Voice per prayer */}
+                    {!isSunrise && (
+                      <div>
+                        <label className="mb-1 block text-[11px] font-bold text-muted-foreground">
+                          صوت الأذان عند دخول وقت {pNameAr}
+                        </label>
+                        <select
+                          value={currentAdhan}
+                          onChange={(e) =>
+                            updateSinglePrayerNotif(prayerId, {
+                              adhanSound: e.target.value as AdhanSoundId,
+                            })
+                          }
+                          className="w-full rounded-xl border border-border bg-card px-2.5 py-1.5 text-xs font-bold text-foreground"
+                        >
+                          {ADHAN_VOICES_META.map((a) => (
+                            <option key={a.id} value={a.id}>
+                              {a.nameAr}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Iqamah reminder */}
+                    {!isSunrise && (
+                      <div>
+                        <label className="mb-1 block text-[11px] font-bold text-muted-foreground">
+                          تذكير الإقامة بعد الأذان
+                        </label>
+                        <select
+                          value={cfg.iqamahMinutes}
+                          onChange={(e) =>
+                            updateSinglePrayerNotif(prayerId, {
+                              iqamahMinutes: Number(e.target.value),
+                            })
+                          }
+                          className="w-full rounded-xl border border-border bg-card px-2.5 py-1.5 text-xs font-bold text-foreground"
+                        >
+                          <option value={0}>غير مفعل</option>
+                          <option value={10}>بعد ١٠ دقائق</option>
+                          <option value={15}>بعد ١٥ دقيقة</option>
+                          <option value={20}>بعد ٢٠ دقيقة</option>
+                          <option value={30}>بعد ٣٠ دقيقة</option>
+                        </select>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
             }
           )}
+        </div>
+
+        {/* Browser Limitations Transparent Notice */}
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs leading-relaxed text-amber-950 dark:text-amber-200">
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+            <div>
+              <strong>ملاحظة حول تشغيل الأذان في المتصفح: </strong>
+              يعمل الأذان والتنبيه الصوتي الناطق تلقائيًا طالما أن تبويب الموقع مفتوح في المتصفح وبعد تفاعلك الأول مع الصفحة. تمنع متصفحات الهواتف والحواسيب تشغيل الصوت إذا تم إغلاق المتصفح بالكامل.
+            </div>
+          </div>
         </div>
       </section>
 
@@ -422,7 +652,7 @@ export function SettingsAndAlertsClient() {
             </h2>
           </div>
 
-          <div className="flex items-center justify-between rounded-2xl border border-border bg-background/60 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-background/60 p-4">
             <div>
               <span className="text-xs text-muted-foreground">الموقع الحالي المختار</span>
               <p className="mt-0.5 text-sm font-extrabold text-foreground">
@@ -489,52 +719,45 @@ export function SettingsAndAlertsClient() {
           </div>
         </section>
 
-        {/* Appearance & Privacy Management */}
-        <section className="space-y-5 rounded-3xl border border-border bg-card p-6 shadow-soft">
-          <div className="flex items-center gap-2.5">
-            <Palette className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-extrabold text-foreground">
-              ٣. المظهر والخصوصية والبيانات المحلية
-            </h2>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-background/60 p-4">
-            <div>
-              <div className="text-sm font-bold text-foreground">وضع الألوان والمظهر</div>
-              <p className="text-xs text-muted-foreground">
-                اختر بين الوضع النهاري المريح، الليلي الهادئ، أو التلقائي
-              </p>
+        {/* Appearance & Privacy Management (Export JSON button removed as requested) */}
+        <section className="flex flex-col justify-between space-y-5 rounded-3xl border border-border bg-card p-6 shadow-soft">
+          <div className="space-y-5">
+            <div className="flex items-center gap-2.5">
+              <Palette className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-extrabold text-foreground">
+                ٣. المظهر والخصوصية والبيانات المحلية
+              </h2>
             </div>
-            <ThemeToggle showLabels />
-          </div>
 
-          <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-xs leading-relaxed text-foreground">
-            <div className="flex items-start gap-2.5">
-              <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-background/60 p-4">
               <div>
-                <strong>سياسة الخصوصية واستخدام الموقع الجغرافي: </strong>
-                لا يشترط موقع <strong>نور | NOOR</strong> إنشاء حساب أو تسجيل دخول. لا يتم طلب موقعك الجغرافي (GPS) إلا عند ضغطك يدويًا على زر «تحديد موقعي الحالي»، وتُستخدم الإحداثيات محليًا داخل متصفحك فقط لحساب مواقيت الصلاة واتجاه القبلة دون إرسالها لأي خادم خارجي.
+                <div className="text-sm font-bold text-foreground">وضع الألوان والمظهر</div>
+                <p className="text-xs text-muted-foreground">
+                  اختر بين الوضع النهاري المريح، الليلي الهادئ، أو التلقائي
+                </p>
+              </div>
+              <ThemeToggle showLabels />
+            </div>
+
+            <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-xs leading-relaxed text-foreground">
+              <div className="flex items-start gap-2.5">
+                <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                <div>
+                  <strong>سياسة الخصوصية واستخدام الموقع الجغرافي: </strong>
+                  لا يشترط موقع <strong>نور | NOOR</strong> إنشاء حساب أو تسجيل دخول. تُحفظ تفضيلاتك وختمتك محليًا داخل جهازك فقط دون إرسالها لأي خادم خارجي.
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 pt-1">
-            <button
-              type="button"
-              onClick={handleExportData}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-xs font-bold text-foreground hover:bg-muted"
-            >
-              <Download className="h-4 w-4 text-primary" />
-              <span>تصدير نسخة احتياطية (JSON)</span>
-            </button>
-
+          <div className="pt-1">
             <button
               type="button"
               onClick={() => setShowClearConfirm(true)}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-xs font-bold text-red-700 hover:bg-red-500/20 dark:text-red-300"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs font-bold text-red-700 transition hover:bg-red-500/20 dark:text-red-300"
             >
               <Trash2 className="h-4 w-4" />
-              <span>حذف جميع البيانات المحلية</span>
+              <span>حذف جميع البيانات المحلية وإعادة الضبط</span>
             </button>
           </div>
         </section>
@@ -556,7 +779,7 @@ export function SettingsAndAlertsClient() {
               <span>مواقيت الصلاة والقبلة</span>
             </h3>
             <p className="mt-1.5">
-              تُحسب فلكيًا عبر مكتبة <code>Adhan</code> المعتمدة على معادلات جان ميوس الفلكية (Jean Meeus Astronomical Algorithms)، مع ضبط <strong>الهيئة المصرية العامة للمساحة</strong> افتراضيًا (زاوية الفجر 19.5°، زاوية العشاء 17.5°، ومذهب الجمهور للعصر).
+              تُحسب فلكيًا عبر مكتبة <code>Adhan</code> المعتمدة على معادلات جان ميوس الفلكية، مع ضبط <strong>الهيئة المصرية العامة للمساحة</strong> افتراضيًا (زاوية الفجر 19.5°، زاوية العشاء 17.5°، ومذهب الجمهور للعصر).
             </p>
           </div>
 
@@ -566,7 +789,7 @@ export function SettingsAndAlertsClient() {
               <span>النص القرآني والتلاوات</span>
             </h3>
             <p className="mt-1.5">
-              النص القرآني الكامل (114 سورة - 6236 آية) مضمن محليًا بالرسم العثماني الموافق لمصحف المدينة النبوية ومشروع <code>Tanzil / Quran-JSON</code>، والتلاوات الصوتية عبر شبكة <code>EveryAyah</code> الموثوقة لكبار قراء مصر والعالم الإسلامي.
+              النص القرآني الكامل (114 سورة - 6236 آية) مضمن محليًا بالرسم العثماني الموافق لمصحف المدينة النبوية، والتلاوات الصوتية عبر شبكة <code>EveryAyah</code> الموثوقة لكبار قراء مصر والعالم الإسلامي.
             </p>
           </div>
 
@@ -576,7 +799,7 @@ export function SettingsAndAlertsClient() {
               <span>الأذكار والأحاديث النبوية</span>
             </h3>
             <p className="mt-1.5">
-              جميع الأذكار والأدعية مأخوذة بنصها وتشكيلها وعدد تكرارها من كتاب <strong>«حصن المسلم من أذكار الكتاب والسنة»</strong> للشيخ د. سعيد بن علي بن وهف القحطاني، والأحاديث اليومية مخرجة من صحيحي البخاري ومسلم.
+              جميع الأذكار والأدعية مأخوذة بنصها وتشكيلها وعدد تكرارها من كتاب <strong>«حصن المسلم من أذكار الكتاب والسنة»</strong>، والأحاديث اليومية مخرجة من صحيحي البخاري ومسلم.
             </p>
           </div>
         </div>
