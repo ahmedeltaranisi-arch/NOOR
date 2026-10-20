@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -55,7 +55,7 @@ export function Header() {
   const [location, setLocation] = useState<UserLocation>(DEFAULT_USER_LOCATION);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
 
-  // Adhan Quick Popover & Audio State
+  // Adhan Quick Modal & Audio State
   const [isAdhanMenuOpen, setIsAdhanMenuOpen] = useState(false);
   const [selectedAdhanId, setSelectedAdhanId] = useState<AdhanSoundId>("abdulbasit");
   const [sheikhTab, setSheikhTab] = useState<"egypt" | "arab">("egypt");
@@ -64,8 +64,6 @@ export function Header() {
     labelAr: string | null;
     adhanId: AdhanSoundId | null;
   }>({ playing: false, labelAr: null, adhanId: null });
-
-  const adhanPopoverRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setLocation(getSavedLocation());
@@ -99,21 +97,6 @@ export function Header() {
       window.removeEventListener(ADHAN_AUDIO_STATE_EVENT, handleAudioStateChange);
     };
   }, []);
-
-  // Close Adhan popover when clicking outside
-  useEffect(() => {
-    if (!isAdhanMenuOpen) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        adhanPopoverRef.current &&
-        !adhanPopoverRef.current.contains(e.target as Node)
-      ) {
-        setIsAdhanMenuOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isAdhanMenuOpen]);
 
   const handleSelectLocation = (newLoc: UserLocation) => {
     saveLocation(newLoc);
@@ -215,10 +198,7 @@ export function Header() {
           </nav>
 
           {/* Left Actions: Adhan Quick Button + Location Selector + Theme Toggle */}
-          <div
-            ref={adhanPopoverRef}
-            className="relative flex shrink-0 items-center gap-1.5 sm:gap-2"
-          >
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             {/* Navbar Adhan Button */}
             <button
               type="button"
@@ -237,7 +217,7 @@ export function Header() {
               {audioState.playing ? (
                 <>
                   <Square className="h-3.5 w-3.5 shrink-0 fill-current" />
-                  <span>إيقاف الأذان</span>
+                  <span>الأذان يعمل</span>
                 </>
               ) : (
                 <>
@@ -246,18 +226,6 @@ export function Header() {
                 </>
               )}
             </button>
-
-            {/* Quick Stop Button right next to Adhan button when playing */}
-            {audioState.playing && (
-              <button
-                type="button"
-                onClick={() => stopFullAdhanAudio()}
-                title="إيقاف الصوت فورًا"
-                className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-red-500/40 bg-red-500/10 text-red-600 transition hover:bg-red-600 hover:text-white sm:inline-flex"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
 
             {/* Location Selector Pill */}
             <button
@@ -273,191 +241,204 @@ export function Header() {
             </button>
 
             <ThemeToggle />
-
-            {/* Adhan Quick Popover Menu */}
-            {isAdhanMenuOpen && (
-              <div
-                role="dialog"
-                aria-label="قائمة تشغيل الأذان وأصوات الشيوخ"
-                className="fixed left-3 right-3 top-[68px] z-50 mx-auto max-w-md rounded-3xl border border-border bg-card p-4 shadow-2xl sm:absolute sm:left-0 sm:right-auto sm:top-12 sm:mx-0 sm:w-[410px]"
-              >
-                <div className="flex items-center justify-between border-b border-border/70 pb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                      <Volume2 className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-extrabold text-foreground">
-                        الأذان وأصوات الشيوخ المعتمدة
-                      </h3>
-                      <p className="text-[11px] text-muted-foreground">
-                        المؤذن الحالي: {currentSheikhMeta.nameAr}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsAdhanMenuOpen(false)}
-                    className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-
-                {/* Primary Play / Stop Button */}
-                <div className="mt-3 flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (audioState.playing) {
-                        stopFullAdhanAudio();
-                      } else {
-                        await playFullAdhanAudio(selectedAdhanId, "الظهر");
-                      }
-                    }}
-                    className={cn(
-                      "inline-flex flex-1 items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-extrabold transition shadow-sm",
-                      audioState.playing
-                        ? "bg-red-600 text-white hover:bg-red-700"
-                        : "bg-primary text-primary-foreground hover:bg-primary/90"
-                    )}
-                  >
-                    {audioState.playing ? (
-                      <>
-                        <Square className="h-3.5 w-3.5 fill-current" />
-                        <span>إيقاف الصوت ({audioState.labelAr || "الأذان"})</span>
-                      </>
-                    ) : (
-                      <>
-                        <Play className="h-3.5 w-3.5 fill-current" />
-                        <span>تشغيل الأذان الآن ({currentSheikhMeta.nameAr})</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                {/* Category Tabs: Egyptian Sheikhs vs Haramain & Arab World */}
-                <div className="mt-3 grid grid-cols-2 gap-1 rounded-xl border border-border bg-muted/50 p-1">
-                  <button
-                    type="button"
-                    onClick={() => setSheikhTab("egypt")}
-                    className={cn(
-                      "rounded-lg py-1.5 text-xs font-extrabold transition",
-                      sheikhTab === "egypt"
-                        ? "bg-card text-primary shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    شيوخ مصر (١١ شيخًا)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSheikhTab("arab")}
-                    className={cn(
-                      "rounded-lg py-1.5 text-xs font-extrabold transition",
-                      sheikhTab === "arab"
-                        ? "bg-card text-primary shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    الحرمان والعرب (٥)
-                  </button>
-                </div>
-
-                {/* Scrollable Sheikhs List */}
-                <div className="mt-2.5 max-h-56 space-y-1.5 overflow-y-auto pr-0.5">
-                  {filteredSheikhs.map((voice) => {
-                    const isSelected = selectedAdhanId === voice.id;
-                    const isPlayingThis =
-                      audioState.playing && audioState.adhanId === voice.id;
-
-                    return (
-                      <div
-                        key={voice.id}
-                        className={cn(
-                          "flex items-center justify-between gap-2 rounded-xl border p-2.5 transition",
-                          isSelected
-                            ? "border-primary/60 bg-primary/10"
-                            : "border-border/70 bg-background/70 hover:border-primary/40"
-                        )}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => handleChooseAndPlaySheikh(voice.id)}
-                          className="flex flex-1 flex-col text-right"
-                        >
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-xs font-extrabold text-foreground">
-                              {voice.nameAr}
-                            </span>
-                            {isSelected && (
-                              <Check className="h-3.5 w-3.5 text-primary" />
-                            )}
-                          </div>
-                          <span className="text-[10px] text-muted-foreground">
-                            {voice.titleAr} • {voice.countryAr}
-                          </span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleChooseAndPlaySheikh(voice.id)}
-                          className={cn(
-                            "inline-flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-2.5 text-[11px] font-bold transition",
-                            isPlayingThis
-                              ? "bg-red-600 text-white"
-                              : "bg-primary/15 text-primary hover:bg-primary hover:text-primary-foreground"
-                          )}
-                        >
-                          {isPlayingThis ? (
-                            <>
-                              <Square className="h-3 w-3 fill-current" />
-                              <span>إيقاف</span>
-                            </>
-                          ) : (
-                            <>
-                              <Play className="h-3 w-3 fill-current" />
-                              <span>استماع</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Quick Approaching Prayer Voice Alert Preview */}
-                <div className="mt-3 border-t border-border/70 pt-2.5">
-                  <div className="mb-1.5 text-[11px] font-bold text-muted-foreground">
-                    تجربة صوت اقتراب الصلاة («الله أكبر.. اقتربت صلاة ...»):
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {(["الفجر", "الظهر", "العصر", "المغرب", "العشاء"] as const).map(
-                      (pName) => (
-                        <button
-                          key={pName}
-                          type="button"
-                          onClick={() =>
-                            playApproachingPrayerAlert(
-                              pName,
-                              10,
-                              "approaching-voice"
-                            )
-                          }
-                          className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2 py-1 text-[10px] font-bold text-foreground transition hover:border-primary hover:text-primary"
-                        >
-                          <Volume2 className="h-2.5 w-2.5 text-primary" />
-                          <span>اقتربت {pName}</span>
-                        </button>
-                      )
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </header>
+
+      {/* Centered Responsive Adhan & Sheikhs Modal (rendered outside Header to prevent any edge clipping) */}
+      {isAdhanMenuOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="قائمة تشغيل الأذان وأصوات الشيوخ"
+          onClick={() => setIsAdhanMenuOpen(false)}
+          className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-3 pt-16 backdrop-blur-sm sm:items-center sm:p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md overflow-hidden rounded-3xl border border-border bg-card p-4 shadow-2xl sm:p-5"
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between gap-2 border-b border-border/70 pb-3">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                  <Volume2 className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="truncate text-sm font-extrabold text-foreground sm:text-base">
+                    الأذان وأصوات الشيوخ المعتمدة
+                  </h3>
+                  <p className="truncate text-[11px] text-muted-foreground">
+                    المؤذن المختار: {currentSheikhMeta.nameAr}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAdhanMenuOpen(false)}
+                aria-label="إغلاق نافذة الأذان"
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground transition hover:bg-muted hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Primary Play / Stop Button */}
+            <div className="mt-3.5">
+              <button
+                type="button"
+                onClick={async () => {
+                  if (audioState.playing) {
+                    stopFullAdhanAudio();
+                  } else {
+                    await playFullAdhanAudio(selectedAdhanId, "الظهر");
+                  }
+                }}
+                className={cn(
+                  "flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-xs font-extrabold shadow-sm transition sm:text-sm",
+                  audioState.playing
+                    ? "bg-red-600 text-white hover:bg-red-700"
+                    : "bg-primary text-primary-foreground hover:bg-primary/90"
+                )}
+              >
+                {audioState.playing ? (
+                  <>
+                    <Square className="h-3.5 w-3.5 shrink-0 fill-current" />
+                    <span className="truncate">
+                      إيقاف الصوت ({audioState.labelAr || "الأذان"})
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-3.5 w-3.5 shrink-0 fill-current" />
+                    <span className="truncate">
+                      تشغيل الأذان الآن ({currentSheikhMeta.nameAr})
+                    </span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Category Tabs: Egyptian Sheikhs vs Haramain & Arab World */}
+            <div className="mt-3 grid grid-cols-2 gap-1.5 rounded-xl border border-border bg-muted/50 p-1">
+              <button
+                type="button"
+                onClick={() => setSheikhTab("egypt")}
+                className={cn(
+                  "rounded-lg py-1.5 text-xs font-extrabold transition",
+                  sheikhTab === "egypt"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                شيوخ مصر (١١ شيخًا)
+              </button>
+              <button
+                type="button"
+                onClick={() => setSheikhTab("arab")}
+                className={cn(
+                  "rounded-lg py-1.5 text-xs font-extrabold transition",
+                  sheikhTab === "arab"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                الحرمان والعرب (٥)
+              </button>
+            </div>
+
+            {/* Scrollable Sheikhs List */}
+            <div className="mt-3 max-h-56 space-y-1.5 overflow-y-auto pl-1">
+              {filteredSheikhs.map((voice) => {
+                const isSelected = selectedAdhanId === voice.id;
+                const isPlayingThis =
+                  audioState.playing && audioState.adhanId === voice.id;
+
+                return (
+                  <div
+                    key={voice.id}
+                    className={cn(
+                      "flex items-center justify-between gap-2.5 rounded-xl border p-2.5 transition",
+                      isSelected
+                        ? "border-primary/60 bg-primary/10"
+                        : "border-border/70 bg-background/70 hover:border-primary/40"
+                    )}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleChooseAndPlaySheikh(voice.id)}
+                      className="flex min-w-0 flex-1 flex-col text-right"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate text-xs font-extrabold text-foreground">
+                          {voice.nameAr}
+                        </span>
+                        {isSelected && (
+                          <Check className="h-3.5 w-3.5 shrink-0 text-primary" />
+                        )}
+                      </div>
+                      <span className="truncate text-[10px] text-muted-foreground">
+                        {voice.titleAr} • {voice.countryAr}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleChooseAndPlaySheikh(voice.id)}
+                      className={cn(
+                        "inline-flex h-8 shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg px-3 text-[11px] font-bold transition",
+                        isPlayingThis
+                          ? "bg-red-600 text-white"
+                          : "bg-primary/15 text-primary hover:bg-primary hover:text-primary-foreground"
+                      )}
+                    >
+                      {isPlayingThis ? (
+                        <>
+                          <Square className="h-3 w-3 shrink-0 fill-current" />
+                          <span>إيقاف</span>
+                        </>
+                      ) : (
+                        <>
+                          <Play className="h-3 w-3 shrink-0 fill-current" />
+                          <span>استماع</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Quick Approaching Prayer Voice Alert Preview — Clean 3/5-Column Grid */}
+            <div className="mt-3.5 border-t border-border/70 pt-3">
+              <div className="mb-2 text-[11px] font-bold text-muted-foreground">
+                تجربة صوت اقتراب الصلاة («الله أكبر.. اقتربت صلاة ...»):
+              </div>
+              <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5">
+                {(["الفجر", "الظهر", "العصر", "المغرب", "العشاء"] as const).map(
+                  (pName) => (
+                    <button
+                      key={pName}
+                      type="button"
+                      onClick={() =>
+                        playApproachingPrayerAlert(
+                          pName,
+                          10,
+                          "approaching-voice"
+                        )
+                      }
+                      className="inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-xl border border-border bg-background px-2 py-1.5 text-[11px] font-bold text-foreground transition hover:border-primary hover:bg-primary/10 hover:text-primary"
+                    >
+                      <Volume2 className="h-3 w-3 shrink-0 text-primary" />
+                      <span>{pName}</span>
+                    </button>
+                  )
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <LocationSelectorModal
         isOpen={isLocationModalOpen}

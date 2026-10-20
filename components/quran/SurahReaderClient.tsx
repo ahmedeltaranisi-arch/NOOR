@@ -264,16 +264,20 @@ export function SurahReaderClient({
         </div>
 
         {/* Ornate Surah Banner */}
-        <div className="my-5 rounded-2xl border border-gold/30 bg-gradient-to-l from-primary via-emerald-900 to-primary p-6 text-center text-white shadow-inner">
-          <div className="text-xs font-semibold text-gold">
-            سورة رقم {toArabicDigits(surah.id)} • الصفحة {toArabicDigits(surah.pageStart)}
+        <div className="my-5 flex flex-col items-center justify-center gap-3.5 rounded-2xl border border-gold/30 bg-gradient-to-l from-primary via-emerald-900 to-primary px-6 py-7 text-center text-white shadow-inner sm:py-8">
+          <div className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-black/20 px-3.5 py-1 text-xs font-bold text-gold">
+            <span>سورة رقم {toArabicDigits(surah.id)}</span>
+            <span>•</span>
+            <span>الصفحة {toArabicDigits(surah.pageStart)}</span>
           </div>
-          <h1 className="font-quran mt-1 text-3xl font-bold text-white sm:text-5xl">
+          <h1 className="font-serif py-1.5 text-3xl font-bold leading-[1.75] text-white sm:text-5xl sm:leading-[1.75]">
             سُورَةُ {surah.name}
           </h1>
-          <p className="mt-2 text-xs text-emerald-100/90">
-            {surah.typeAr} • عدد آياتها {toArabicDigits(surah.totalVerses)} آية
-          </p>
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-xs font-semibold text-emerald-50">
+            <span>{surah.typeAr}</span>
+            <span>•</span>
+            <span>عدد آياتها {toArabicDigits(surah.totalVerses)} آية</span>
+          </div>
         </div>
 
         {/* Reader Controls Toolbar: View Mode, Font Size, Reciter */}
@@ -446,30 +450,55 @@ export function SurahReaderClient({
 
       {/* Selected Ayah Quick Action Bar (in Mushaf continuous mode) */}
       {prefs.viewMode === "mushaf" && selectedVerseObj && (
-        <div className="sticky top-16 z-30 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-gold/40 bg-card/95 px-4 py-3 shadow-md backdrop-blur-md">
-          <div className="flex items-center gap-2 text-xs font-bold text-foreground">
-            <span className="rounded-lg bg-primary/10 px-2.5 py-1 text-primary">
+        <div className="sticky top-[68px] z-30 flex flex-col gap-2.5 rounded-2xl border border-gold/40 bg-card/95 px-4 py-3 shadow-md backdrop-blur-md lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2.5">
+            <span className="shrink-0 rounded-xl bg-primary/15 px-3 py-1.5 text-xs font-extrabold text-primary">
               الآية المحددة: {toArabicDigits(selectedVerseObj.id)}
             </span>
-            <span className="hidden max-w-md truncate text-muted-foreground md:inline">
-              ﴿{selectedVerseObj.text}﴾
-            </span>
+            <p className="quran-verse-text min-w-0 flex-1 py-0.5 text-base leading-[2.15] text-foreground sm:text-lg">
+              ﴿
+              {selectedVerseObj.text.split(/\s+/).length > 10
+                ? `${selectedVerseObj.text.split(/\s+/).slice(0, 10).join(" ")} ...`
+                : selectedVerseObj.text}
+              ﴾
+            </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex shrink-0 flex-wrap items-center gap-1.5">
             <button
               type="button"
-              onClick={() => playSpecificAyah(selectedVerseObj.id)}
-              className="inline-flex items-center gap-1 rounded-xl bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground"
+              onClick={() => {
+                if (isPlaying && playingAyah === selectedVerseObj.id) {
+                  setIsPlaying(false);
+                  audioRef.current?.pause();
+                } else {
+                  playSpecificAyah(selectedVerseObj.id);
+                }
+              }}
+              className={cn(
+                "inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-1.5 text-xs font-bold transition",
+                isPlaying && playingAyah === selectedVerseObj.id
+                  ? "bg-red-600 text-white hover:bg-red-700"
+                  : "bg-primary text-primary-foreground hover:bg-primary/90"
+              )}
             >
-              <Play className="h-3.5 w-3.5" />
-              <span>استماع للآية</span>
+              {isPlaying && playingAyah === selectedVerseObj.id ? (
+                <>
+                  <Pause className="h-3.5 w-3.5" />
+                  <span>إيقاف التلاوة</span>
+                </>
+              ) : (
+                <>
+                  <Play className="h-3.5 w-3.5" />
+                  <span>استماع للآية</span>
+                </>
+              )}
             </button>
 
             <button
               type="button"
               onClick={() => handleSaveLastRead(selectedVerseObj.id)}
-              className="inline-flex items-center gap-1 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground hover:border-primary hover:text-primary"
+              className="inline-flex items-center gap-1 whitespace-nowrap rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground hover:border-primary hover:text-primary"
             >
               <BookOpen className="h-3.5 w-3.5 text-primary" />
               <span>حفظ كموضع قراءة</span>
@@ -481,7 +510,7 @@ export function SurahReaderClient({
                 handleToggleBookmark(selectedVerseObj.id, selectedVerseObj.text)
               }
               className={cn(
-                "inline-flex items-center gap-1 rounded-xl border px-3 py-1.5 text-xs font-bold transition",
+                "inline-flex items-center gap-1 whitespace-nowrap rounded-xl border px-3 py-1.5 text-xs font-bold transition",
                 isBookmarked(selectedVerseObj.id)
                   ? "border-gold bg-gold-muted text-gold"
                   : "border-border bg-background text-foreground hover:bg-muted"
@@ -498,7 +527,7 @@ export function SurahReaderClient({
               onClick={() =>
                 handleCopyAyah(selectedVerseObj.id, selectedVerseObj.text)
               }
-              className="inline-flex items-center gap-1 rounded-xl border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
+              className="inline-flex items-center gap-1 whitespace-nowrap rounded-xl border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
             >
               {copiedAyah === selectedVerseObj.id ? (
                 <Check className="h-3.5 w-3.5 text-emerald-600" />
@@ -513,7 +542,7 @@ export function SurahReaderClient({
               onClick={() =>
                 handleShareAyah(selectedVerseObj.id, selectedVerseObj.text)
               }
-              className="inline-flex items-center gap-1 rounded-xl border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
+              className="inline-flex items-center gap-1 whitespace-nowrap rounded-xl border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
             >
               <Share2 className="h-3.5 w-3.5" />
               <span>مشاركة</span>
