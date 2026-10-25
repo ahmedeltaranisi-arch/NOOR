@@ -20,14 +20,19 @@ import {
 import { getHijriDateInfo, normalizeArabicText } from "@/lib/utils";
 import { ALLAH_NAMES, QURAN_RECITERS } from "@/data/daily-content";
 import {
+  AUDIO_OVERLAP_HOLD_MS,
+  DEEP_OVERLAP_LEAD_SECONDS,
+  DEEP_START_SILENCE_SKIP_SECONDS,
   formatAudioTime,
   getAyahAudioUrl,
+  getEffectiveStartSkipSeconds,
   getPreloadWindowIndices,
   getSurahFallbackAudioUrl,
   HAVE_ENOUGH_DATA_READY_STATE,
   PRELOAD_AHEAD_COUNT,
   shouldSmartCrossTrigger,
   SMART_CROSS_TRIGGER_LEAD_SECONDS,
+  START_SILENCE_SKIP_SECONDS,
 } from "@/lib/quran/audio";
 import { ADHKAR_CATEGORIES, ADHKAR_DATA } from "@/data/adhkar";
 import { ADHAN_VOICES_META } from "@/lib/storage/local-storage";
@@ -302,19 +307,28 @@ describe("4. التقويم الهجري والقرآن الكريم والأذ�
     }
   });
 
-  it("يدعم التحميل المسبق المزدوج للآيتين القادمتين والانتقال الذكي (120ms) والبث المتصل للسور", () => {
+  it("يدعم التحميل المسبق المزدوج للآيتين القادمتين والدمج المتداخل الصفري (0% فاصل) والبث المتصل للسور", () => {
     expect(PRELOAD_AHEAD_COUNT).toBe(2);
     expect(HAVE_ENOUGH_DATA_READY_STATE).toBe(4);
-    expect(SMART_CROSS_TRIGGER_LEAD_SECONDS).toBe(0.12);
+    expect(SMART_CROSS_TRIGGER_LEAD_SECONDS).toBe(0.38);
+    expect(DEEP_OVERLAP_LEAD_SECONDS).toBe(0.52);
+    expect(START_SILENCE_SKIP_SECONDS).toBe(0.18);
+    expect(DEEP_START_SILENCE_SKIP_SECONDS).toBe(0.24);
+    expect(AUDIO_OVERLAP_HOLD_MS).toBe(180);
 
     // Preload window returns exact next 2 verses in the playlist
     expect(getPreloadWindowIndices(0, 7)).toEqual([1, 2]);
     expect(getPreloadWindowIndices(5, 7)).toEqual([6]);
     expect(getPreloadWindowIndices(6, 7)).toEqual([]);
 
-    // Smart Cross-Trigger activates within 120ms before the end of an ayah file
-    expect(shouldSmartCrossTrigger(4.5, 5.0)).toBe(false);
-    expect(shouldSmartCrossTrigger(4.89, 5.0)).toBe(true);
+    // Pre-seek start silence skip scales safely for normal and short verses
+    expect(getEffectiveStartSkipSeconds(5.0, DEEP_START_SILENCE_SKIP_SECONDS)).toBe(0.24);
+    expect(getEffectiveStartSkipSeconds(0.5, DEEP_START_SILENCE_SKIP_SECONDS)).toBe(0);
+
+    // Smart Cross-Trigger activates before trailing silence (380ms standard / 520ms deep)
+    expect(shouldSmartCrossTrigger(4.2, 5.0)).toBe(false);
+    expect(shouldSmartCrossTrigger(4.65, 5.0)).toBe(true);
+    expect(shouldSmartCrossTrigger(4.5, 5.0, DEEP_OVERLAP_LEAD_SECONDS)).toBe(true);
     expect(shouldSmartCrossTrigger(0.2, 0.4)).toBe(false); // ignores tiny durations <= 0.6s
 
     // Every reciter has both EveryAyah folder and continuous Surah stream server URL

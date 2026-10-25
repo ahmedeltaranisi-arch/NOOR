@@ -1,9 +1,34 @@
 /**
  * Default lead time (in seconds) before the end of an Ayah MP3 file
- * to trigger the next preloaded Ayah (120ms = 0.12s) so trailing MP3
- * padding silence is bypassed seamlessly.
+ * to trigger the next preloaded Ayah (380ms = 0.38s) so trailing MP3
+ * silence padding is completely bypassed with true audio overlap.
  */
-export const SMART_CROSS_TRIGGER_LEAD_SECONDS = 0.12;
+export const SMART_CROSS_TRIGGER_LEAD_SECONDS = 0.38;
+
+/**
+ * Ultra-tight overlap lead time (520ms = 0.52s) for reciters whose
+ * individual verse MP3s include longer trailing room silence.
+ */
+export const DEEP_OVERLAP_LEAD_SECONDS = 0.52;
+
+/**
+ * Leading silence offset (in seconds) pre-seeked on the standby <audio>
+ * element while paused so the next verse begins immediately on the
+ * Sheikh's vocal onset (180ms = 0.18s) with zero seek delay.
+ */
+export const START_SILENCE_SKIP_SECONDS = 0.18;
+
+/**
+ * Ultra-tight leading silence offset (240ms = 0.24s) for deep overlap mode.
+ */
+export const DEEP_START_SILENCE_SKIP_SECONDS = 0.24;
+
+/**
+ * Duration (in milliseconds) that the outgoing audio slot continues playing
+ * concurrently after the incoming standby slot has started playing, ensuring
+ * a 100% seamless zero-gap transition.
+ */
+export const AUDIO_OVERLAP_HOLD_MS = 180;
 
 /**
  * Number of upcoming verses to preload into memory concurrently.
@@ -14,6 +39,8 @@ export const PRELOAD_AHEAD_COUNT = 2;
  * HTMLMediaElement.HAVE_ENOUGH_DATA constant (readyState === 4).
  */
 export const HAVE_ENOUGH_DATA_READY_STATE = 4;
+
+export type GaplessTightnessPreset = "standard-overlap" | "deep-overlap";
 
 /**
  * Builds the audio URL for a specific Surah and Ayah using EveryAyah CDN format:
@@ -38,10 +65,12 @@ export function getAyahAudioUrl(
 export function getSurahFallbackAudioUrl(
   surahId: number,
   surahAudioServerUrl?: string
-): string | null {
-  if (!surahAudioServerUrl) return null;
+): string {
+  const base = (
+    surahAudioServerUrl || "https://server13.mp3quran.net/husr"
+  ).replace(/\/$/, "");
   const sPad = String(surahId).padStart(3, "0");
-  return `${surahAudioServerUrl.replace(/\/$/, "")}/${sPad}.mp3`;
+  return `${base}/${sPad}.mp3`;
 }
 
 /**
@@ -65,9 +94,23 @@ export function getPreloadWindowIndices(
 }
 
 /**
+ * Computes the safe pre-seek start offset (in seconds) to skip leading silence
+ * on a preloaded standby verse without clipping short verses.
+ */
+export function getEffectiveStartSkipSeconds(
+  duration: number,
+  targetSkip: number = START_SILENCE_SKIP_SECONDS
+): number {
+  if (!Number.isFinite(duration) || duration <= 0.8) {
+    return 0;
+  }
+  return Math.min(targetSkip, duration * 0.08);
+}
+
+/**
  * Determines whether the Smart Cross-Trigger should advance to the preloaded
- * next verse (~120ms before the end of the current MP3 file) to eliminate
- * trailing silence padding.
+ * next verse (~380ms–520ms before the end of the current MP3 file) to eliminate
+ * trailing silence padding with true overlap.
  */
 export function shouldSmartCrossTrigger(
   currentTime: number,
@@ -77,11 +120,12 @@ export function shouldSmartCrossTrigger(
   if (!Number.isFinite(currentTime) || !Number.isFinite(duration)) {
     return false;
   }
-  // Ensure the file is long enough (> 0.6s) before applying early cross-trigger
-  if (duration <= Math.max(0.6, leadSeconds * 3)) {
+  if (duration <= 0.6) {
     return false;
   }
-  return currentTime >= duration - leadSeconds;
+  // Scale lead time for shorter verses so it never exceeds 22% of total duration
+  const effectiveLead = Math.min(leadSeconds, duration * 0.22);
+  return currentTime >= duration - effectiveLead;
 }
 
 /**

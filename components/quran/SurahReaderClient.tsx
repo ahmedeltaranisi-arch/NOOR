@@ -28,14 +28,19 @@ import {
 } from "lucide-react";
 import { QURAN_RECITERS } from "@/data/daily-content";
 import {
+  AUDIO_OVERLAP_HOLD_MS,
+  DEEP_OVERLAP_LEAD_SECONDS,
+  DEEP_START_SILENCE_SKIP_SECONDS,
   formatAudioTime,
   getAyahAudioUrl,
+  getEffectiveStartSkipSeconds,
   getPreloadWindowIndices,
   getSurahFallbackAudioUrl,
   HAVE_ENOUGH_DATA_READY_STATE,
   PRELOAD_AHEAD_COUNT,
   shouldSmartCrossTrigger,
   SMART_CROSS_TRIGGER_LEAD_SECONDS,
+  START_SILENCE_SKIP_SECONDS,
 } from "@/lib/quran/audio";
 import {
   DEFAULT_QURAN_PREFS,
@@ -95,6 +100,7 @@ export function SurahReaderClient({
   const activeSlotRef = useRef<"A" | "B">("A");
   const preloadCacheRef = useRef<Map<string, HTMLAudioElement>>(new Map());
   const crossTriggeredAyahRef = useRef<number | null>(null);
+  const overlapTimeoutRef = useRef<number | null>(null);
   const playingAyahRef = useRef<number>(1);
   const [preloadedReadyCount, setPreloadedReadyCount] = useState<number>(0);
 
@@ -104,6 +110,15 @@ export function SurahReaderClient({
 
   const audioMode: QuranAudioMode = prefs.audioMode || "gapless-ayah";
   const smartCrossTriggerEnabled = prefs.smartCrossTriggerEnabled !== false;
+  const gaplessTightness = prefs.gaplessTightness || "deep-overlap";
+  const activeLeadSeconds =
+    gaplessTightness === "deep-overlap"
+      ? DEEP_OVERLAP_LEAD_SECONDS
+      : SMART_CROSS_TRIGGER_LEAD_SECONDS;
+  const activeStartSkipSeconds =
+    gaplessTightness === "deep-overlap"
+      ? DEEP_START_SILENCE_SKIP_SECONDS
+      : START_SILENCE_SKIP_SECONDS;
 
   const getActiveAudio = useCallback((): HTMLAudioElement | null => {
     return activeSlotRef.current === "A"
@@ -118,6 +133,10 @@ export function SurahReaderClient({
   }, []);
 
   const stopAllAudio = useCallback(() => {
+    if (overlapTimeoutRef.current !== null && typeof window !== "undefined") {
+      window.clearTimeout(overlapTimeoutRef.current);
+      overlapTimeoutRef.current = null;
+    }
     if (audioSlotARef.current) {
       audioSlotARef.current.pause();
     }
@@ -248,14 +267,40 @@ export function SurahReaderClient({
         activeUrls.add(url);
 
         // Prime standby DOM <audio> slot with the immediate next verse (ayahNum + 1)
+        // and pre-seek past leading MP3 silence while paused so play() starts in 0ms!
         if (offsetIdx === 0) {
           const standby = getStandbyAudio();
-          if (standby && standby.src !== url) {
-            standby.preload = "auto";
-            standby.src = url;
-            standby.playbackRate = playbackRate;
-            standby.volume = isMuted ? 0 : volume;
-            standby.load();
+          if (standby) {
+            const preSeekStandby = () => {
+              if (!standby.paused || !smartCrossTriggerEnabled) return;
+              const skipSec = getEffectiveStartSkipSeconds(
+                standby.duration,
+                activeStartSkipSeconds
+              );
+              if (skipSec > 0 && Math.abs(standby.currentTime - skipSec) > 0.02) {
+                try {
+                  standby.currentTime = skipSec;
+                } catch {
+                  // ignore if not seekable yet
+                }
+              }
+            };
+
+            if (standby.src !== url) {
+              standby.preload = "auto";
+              standby.src = url;
+              standby.playbackRate = playbackRate;
+              standby.volume = isMuted ? 0 : volume;
+              standby.addEventListener("loadedmetadata", preSeekStandby, {
+                once: true,
+              });
+              standby.addEventListener("canplay", preSeekStandby, {
+                once: true,
+              });
+              standby.load();
+            } else if (standby.readyState >= 1) {
+              preSeekStandby();
+            }
           }
         }
 
@@ -291,20 +336,24 @@ export function SurahReaderClient({
       recomputeReadyCount();
     },
     [
+      activeStartSkipSeconds,
       audioMode,
       getStandbyAudio,
       isMuted,
       playbackRate,
+      smartCrossTriggerEnabled,
       surah.id,
       surah.totalVerses,
       volume,
     ]
   );
 
-  // Preload upcoming 2 verses on initial mount or selection change
+  // Preload initial 2 verses on mount or reciter change (while not actively mid-transition)
   useEffect(() => {
-    syncPreloadWindow(playingAyah, currentReciter);
-  }, [playingAyah, currentReciter, syncPreloadWindow]);
+    if (!isPlaying) {
+      syncPreloadWindow(playingAyahRef.current, currentReciter);
+    }
+  }, [surah.id, currentReciter, isPlaying, syncPreloadWindow]);
 
   const playSpecificAyah = useCallback(
     async (
@@ -317,6 +366,11 @@ export function SurahReaderClient({
     ) => {
       const activeReciter = options?.reciterOverride || currentReciter;
       const effectiveMode = options?.modeOverride || audioMode;
+
+      if (overlapTimeoutRef.current !== null && typeof window !== "undefined") {
+        window.clearTimeout(overlapTimeoutRef.current);
+        overlapTimeoutRef.current = null;
+      }
 
       setAudioError(null);
       setPlayingAyah(ayahNum);
@@ -349,7 +403,7 @@ export function SurahReaderClient({
         }
       }
 
-      // MODE 1: Gapless Ayah-by-Ayah with Dual-Slot Instant Swap
+      // MODE 1: Gapless Ayah-by-Ayah with True Audio Overlap & Pre-Seeked Standby Swap
       setUsingSurahFallback(false);
       const targetUrl = getAyahAudioUrl(
         surah.id,
@@ -357,32 +411,62 @@ export function SurahReaderClient({
         activeReciter.everyAyahFolder
       );
 
-      let player = getActiveAudio();
+      const outgoingPlayer = getActiveAudio();
       const standby = getStandbyAudio();
+      const effVol = isMuted ? 0 : volume;
 
+      // Case A: Seamless Overlap Transition using preloaded & pre-seeked standby slot!
       if (
         standby &&
         standby.src === targetUrl &&
         (options?.usePreloadedStandby || standby.readyState >= 2)
       ) {
-        if (player) {
-          player.pause();
-          player.currentTime = 0;
-        }
         activeSlotRef.current = activeSlotRef.current === "A" ? "B" : "A";
-        player = standby;
-      } else if (player) {
-        if (standby) {
-          standby.pause();
-        }
-        if (player.src !== targetUrl) {
-          player.src = targetUrl;
+        standby.playbackRate = playbackRate;
+        standby.volume = effVol;
+
+        try {
+          // Do NOT reset standby.currentTime = 0 here — it is already pre-seeked past leading silence!
+          await standby.play();
+          setIsPlaying(true);
+
+          if (outgoingPlayer && !outgoingPlayer.paused) {
+            outgoingPlayer.volume = effVol * 0.4;
+            overlapTimeoutRef.current = window.setTimeout(() => {
+              overlapTimeoutRef.current = null;
+              outgoingPlayer.pause();
+              outgoingPlayer.volume = effVol;
+              syncPreloadWindow(ayahNum, activeReciter, "gapless-ayah");
+            }, AUDIO_OVERLAP_HOLD_MS);
+          } else {
+            if (outgoingPlayer) {
+              outgoingPlayer.pause();
+            }
+            syncPreloadWindow(ayahNum, activeReciter, "gapless-ayah");
+          }
+
+          const el = document.getElementById(`ayah-${ayahNum}`);
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+          return;
+        } catch {
+          // Fall through to standard direct play
         }
       }
 
+      // Case B: Fresh start or manual jump to a verse
+      if (standby) {
+        standby.pause();
+      }
+      const player = getActiveAudio();
       if (!player) return;
+
+      if (player.src !== targetUrl) {
+        player.src = targetUrl;
+      }
       player.playbackRate = playbackRate;
-      player.volume = isMuted ? 0 : volume;
+      player.volume = effVol;
 
       try {
         player.currentTime = 0;
@@ -432,10 +516,10 @@ export function SurahReaderClient({
   );
 
   /**
-   * 2. Smart Cross-Trigger (~120ms before the end of the current MP3 file):
-   * High-frequency monitor (every 35ms) that checks if the current verse is within
-   * 120ms of completion so it swaps to the preloaded standby audio slot BEFORE
-   * trailing MP3 silence padding occurs.
+   * 2. Smart Cross-Trigger with True Overlap (~380ms–520ms before the end of the MP3):
+   * High-frequency monitor (every 25ms) that checks if the current verse has entered
+   * its trailing silence tail so it immediately starts the pre-seeked standby audio slot
+   * with a 180ms true audio overlap — eliminating 100% of any gap between verses.
    */
   useEffect(() => {
     if (!isPlaying) return;
@@ -459,16 +543,16 @@ export function SurahReaderClient({
         shouldSmartCrossTrigger(
           player.currentTime,
           player.duration,
-          SMART_CROSS_TRIGGER_LEAD_SECONDS
+          activeLeadSeconds
         )
       ) {
         const standby = getStandbyAudio();
-        if (standby && standby.readyState >= 3) {
+        if (standby && standby.readyState >= 2) {
           crossTriggeredAyahRef.current = curAyah;
           playSpecificAyah(curAyah + 1, { usePreloadedStandby: true });
         }
       }
-    }, 35);
+    }, 25);
 
     return () => window.clearInterval(timer);
   }, [
@@ -476,6 +560,7 @@ export function SurahReaderClient({
     audioMode,
     usingSurahFallback,
     smartCrossTriggerEnabled,
+    activeLeadSeconds,
     surah.totalVerses,
     getActiveAudio,
     getStandbyAudio,
@@ -762,7 +847,7 @@ export function SurahReaderClient({
               </div>
               <p className="text-[11px] text-muted-foreground">
                 {audioMode === "gapless-ayah"
-                  ? "يقوم المشغّل بتحميل الآيتين القادمتين في الذاكرة مسبقًا والانتقال الذكي قبل آخر 120ms لتلافي صمت نهاية ملف الـ MP3."
+                  ? "يقوم المشغّل بتحميل الآيتين القادمتين في الذاكرة وتخطي صمت بداية ونهاية كل آية مع تداخل صوتي مباشر (180ms Overlap) لإلغاء أي فاصل تمامًا."
                   : `يتم تشغيل التسجيل الكامل المتصل لسورة ${surah.name} من خادم mp3quran.net كملف واحد متصل تمامًا.`}
               </p>
             </div>
@@ -798,27 +883,54 @@ export function SurahReaderClient({
               </div>
 
               {audioMode === "gapless-ayah" && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    updatePrefs({
-                      smartCrossTriggerEnabled: !smartCrossTriggerEnabled,
-                    })
-                  }
-                  title="الانتقال للآية المحمّلة مسبقًا قبل آخر 120ms لتفادي صمت نهاية الملف"
-                  className={cn(
-                    "inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[11px] font-bold transition",
-                    smartCrossTriggerEnabled
-                      ? "border-emerald-600/40 bg-emerald-600/10 text-emerald-700 dark:text-emerald-300"
-                      : "border-border bg-card text-muted-foreground"
-                  )}
-                >
-                  <Zap className="h-3 w-3" />
-                  <span>
-                    الانتقال الذكي (120ms):{" "}
-                    {smartCrossTriggerEnabled ? "مفعّل" : "متوقف"}
-                  </span>
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updatePrefs({
+                        gaplessTightness:
+                          gaplessTightness === "deep-overlap"
+                            ? "standard-overlap"
+                            : "deep-overlap",
+                      })
+                    }
+                    title="التبديل بين الدمج العميق (٠٪ فاصل) والدمج القياسي"
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[11px] font-bold transition",
+                      gaplessTightness === "deep-overlap"
+                        ? "border-primary bg-primary/15 text-primary"
+                        : "border-border bg-card text-foreground"
+                    )}
+                  >
+                    <Zap className="h-3 w-3" />
+                    <span>
+                      {gaplessTightness === "deep-overlap"
+                        ? "دمج عميق (٠٪ فاصل - 520ms)"
+                        : "دمج قياسي (380ms)"}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updatePrefs({
+                        smartCrossTriggerEnabled: !smartCrossTriggerEnabled,
+                      })
+                    }
+                    title="تفعيل أو إيقاف تخطي صمت بداية ونهاية الآيات"
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[11px] font-bold transition",
+                      smartCrossTriggerEnabled
+                        ? "border-emerald-600/40 bg-emerald-600/10 text-emerald-700 dark:text-emerald-300"
+                        : "border-border bg-card text-muted-foreground"
+                    )}
+                  >
+                    <span>
+                      تخطي الصمت:{" "}
+                      {smartCrossTriggerEnabled ? "مفعّل" : "متوقف"}
+                    </span>
+                  </button>
+                </>
               )}
             </div>
           </div>

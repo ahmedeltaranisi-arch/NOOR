@@ -641,6 +641,7 @@ export interface QuranReaderPrefs {
   viewMode: "mushaf" | "cards";
   audioMode?: QuranAudioMode;
   smartCrossTriggerEnabled?: boolean;
+  gaplessTightness?: "standard-overlap" | "deep-overlap";
 }
 
 export const DEFAULT_QURAN_PREFS: QuranReaderPrefs = {
@@ -649,6 +650,7 @@ export const DEFAULT_QURAN_PREFS: QuranReaderPrefs = {
   viewMode: "mushaf",
   audioMode: "gapless-ayah",
   smartCrossTriggerEnabled: true,
+  gaplessTightness: "deep-overlap",
 };
 
 export function getQuranPrefs(): QuranReaderPrefs {
