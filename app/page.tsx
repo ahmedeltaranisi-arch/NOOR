@@ -102,22 +102,22 @@ export default function HomePage() {
         <DashboardWirdCard />
       </div>
 
-      {/* ب-2. قسم أجزاء القرآن الكريم (٣٠ جزءًا — للقراءة فقط) */}
+      {/* ب-2. قسم أجزاء القرآن الكريم (٣٠ جزءًا — القراءة والتلاوة بأصوات ١١ شيخًا) */}
       <section
-        aria-label="أجزاء القرآن الكريم الثلاثون للقراءة فقط"
+        aria-label="أجزاء القرآن الكريم الثلاثون"
         className="rounded-3xl border border-gold/35 bg-card p-4 shadow-soft sm:p-6 md:p-8"
       >
         <div className="flex flex-col justify-between gap-3 border-b border-border/70 pb-4 sm:flex-row sm:items-center">
           <div>
             <div className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/15 px-3 py-1 text-xs font-extrabold text-gold">
               <Layers className="h-3.5 w-3.5" />
-              <span>مصحف القراءة الخالصة • ٣٠ جزءًا</span>
+              <span>الأجزاء الثلاثون • قراءة وتلاوة بأصوات ١١ قارئًا</span>
             </div>
             <h2 className="mt-2 text-xl font-extrabold text-foreground sm:text-2xl">
-              أجزاء القرآن الكريم (٣٠ جزءًا — للقراءة فقط)
+              أجزاء القرآن الكريم (٣٠ جزءًا)
             </h2>
             <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-              اختر أي جزء من الأجزاء الثلاثين لقراءته مباشرة بالرسم العثماني الكامل دون مشغلات صوتية
+              اقرأ واستمع لأي جزء من الأجزاء الثلاثين بأصوات كبار الشيوخ (عبد الباسط، المنشاوي، الحصري، مصطفى إسماعيل، المعيقلي، السديس، العفاسي، الدوسري، العجمي، فارس عباد، ناصر القطامي)
             </p>
           </div>
 

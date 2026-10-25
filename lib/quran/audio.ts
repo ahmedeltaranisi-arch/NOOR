@@ -13,3 +13,16 @@ export function getAyahAudioUrl(
   const aPad = String(ayahNumber).padStart(3, "0");
   return `${baseUrl}/${everyAyahFolder}/${sPad}${aPad}.mp3`;
 }
+
+/**
+ * Builds a fallback full-Surah MP3 URL from MP3Quran CDN:
+ * e.g. https://server8.mp3quran.net/mustafa/001.mp3
+ */
+export function getSurahFallbackAudioUrl(
+  surahId: number,
+  surahAudioServerUrl?: string
+): string | null {
+  if (!surahAudioServerUrl) return null;
+  const sPad = String(surahId).padStart(3, "0");
+  return `${surahAudioServerUrl.replace(/\/$/, "")}/${sPad}.mp3`;
+}

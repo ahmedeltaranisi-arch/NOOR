@@ -23,7 +23,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { QURAN_RECITERS } from "@/data/daily-content";
-import { getAyahAudioUrl } from "@/lib/quran/audio";
+import { getAyahAudioUrl, getSurahFallbackAudioUrl } from "@/lib/quran/audio";
 import {
   DEFAULT_QURAN_PREFS,
   getLastReadPosition,
@@ -129,6 +129,20 @@ export function SurahReaderClient({
         el.scrollIntoView({ behavior: "smooth", block: "center" });
       }
     } catch {
+      const fallbackUrl = getSurahFallbackAudioUrl(
+        surah.id,
+        currentReciter.surahAudioServerUrl
+      );
+      if (fallbackUrl && audioRef.current) {
+        try {
+          audioRef.current.src = fallbackUrl;
+          await audioRef.current.play();
+          setIsPlaying(true);
+          return;
+        } catch {
+          // fall through
+        }
+      }
       setIsPlaying(false);
       setAudioError(
         "تعذر تشغيل التلاوة الصوتية حالياً (تأكد من الاتصال بالإنترنت للوصول إلى خادم الصوتيات). النص القرآني متاح بالكامل دون إنترنت."

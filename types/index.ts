@@ -248,6 +248,7 @@ export interface ReciterInfo {
   nameAr: string;
   styleAr: string;
   everyAyahFolder: string;
+  surahAudioServerUrl?: string;
 }
 
 export type AdhkarCategoryId =
