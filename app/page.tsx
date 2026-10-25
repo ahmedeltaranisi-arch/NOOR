@@ -6,6 +6,7 @@ import {
   CalendarRange,
   Compass,
   HeartHandshake,
+  Layers,
   MapPin,
   Moon,
   Settings,
@@ -18,6 +19,8 @@ import { DashboardQiblaCard } from "@/components/qibla/DashboardQiblaCard";
 import { DashboardWirdCard } from "@/components/quran/DashboardWirdCard";
 import { DailyInspirationSection } from "@/components/layout/DailyInspirationSection";
 import { getDailyInspiration } from "@/data/daily-content";
+import { QURAN_JUZ_META } from "@/lib/quran/juz";
+import { toArabicDigits } from "@/lib/utils";
 
 const QUICK_ACCESS_CARDS = [
   {
@@ -98,6 +101,66 @@ export default function HomePage() {
         <DashboardQiblaCard />
         <DashboardWirdCard />
       </div>
+
+      {/* ب-2. قسم أجزاء القرآن الكريم (٣٠ جزءًا — للقراءة فقط) */}
+      <section
+        aria-label="أجزاء القرآن الكريم الثلاثون للقراءة فقط"
+        className="rounded-3xl border border-gold/35 bg-card p-4 shadow-soft sm:p-6 md:p-8"
+      >
+        <div className="flex flex-col justify-between gap-3 border-b border-border/70 pb-4 sm:flex-row sm:items-center">
+          <div>
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/15 px-3 py-1 text-xs font-extrabold text-gold">
+              <Layers className="h-3.5 w-3.5" />
+              <span>مصحف القراءة الخالصة • ٣٠ جزءًا</span>
+            </div>
+            <h2 className="mt-2 text-xl font-extrabold text-foreground sm:text-2xl">
+              أجزاء القرآن الكريم (٣٠ جزءًا — للقراءة فقط)
+            </h2>
+            <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
+              اختر أي جزء من الأجزاء الثلاثين لقراءته مباشرة بالرسم العثماني الكامل دون مشغلات صوتية
+            </p>
+          </div>
+
+          <Link
+            href="/quran?tab=juz"
+            className="inline-flex items-center justify-center gap-1.5 self-start rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground transition hover:bg-primary/90 sm:self-center"
+          >
+            <BookOpen className="h-4 w-4" />
+            <span>عرض تفاصيل الأجزاء الـ ٣٠</span>
+            <ChevronLeft className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6">
+          {QURAN_JUZ_META.map((juz) => (
+            <Link
+              key={juz.id}
+              href={`/quran/juz/${juz.id}`}
+              className="group flex flex-col justify-between rounded-2xl border border-border bg-background/70 p-3 transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:bg-card hover:shadow-sm"
+            >
+              <div className="flex items-center justify-between gap-1.5">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-gold/30 bg-gold/15 text-xs font-extrabold text-gold transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                  {toArabicDigits(juz.id)}
+                </span>
+                <span className="text-[10px] font-semibold text-muted-foreground">
+                  ص {toArabicDigits(juz.pageStart)}
+                </span>
+              </div>
+              <div className="mt-2">
+                <h3 className="truncate font-serif text-sm font-bold text-foreground group-hover:text-primary sm:text-base">
+                  {juz.nameAr}
+                </h3>
+                <p className="mt-0.5 truncate text-[11px] font-medium text-gold">
+                  {juz.titleAr}
+                </p>
+                <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
+                  سورة {juz.startSurahName} ({toArabicDigits(juz.startAyah)})
+                </p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
 
       {/* ج. بطاقات الوصول السريع */}
       <section aria-label="بطاقات الوصول السريع" className="space-y-4">
