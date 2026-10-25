@@ -175,6 +175,36 @@ export interface SurahDetail extends SurahMeta {
   verses: Ayah[];
 }
 
+export interface JuzMeta {
+  id: number;
+  nameAr: string;
+  titleAr: string;
+  startSurahId: number;
+  startSurahName: string;
+  startAyah: number;
+  endSurahId: number;
+  endSurahName: string;
+  endAyah: number;
+  pageStart: number;
+  pageEnd: number;
+}
+
+export interface JuzSurahSegment {
+  surahId: number;
+  surahName: string;
+  surahTypeAr: "مكية" | "مدنية";
+  totalSurahVerses: number;
+  startAyah: number;
+  endAyah: number;
+  showBismillah: boolean;
+  verses: Ayah[];
+}
+
+export interface JuzDetail extends JuzMeta {
+  totalVersesInJuz: number;
+  segments: JuzSurahSegment[];
+}
+
 export interface QuranSearchResult {
   surahId: number;
   surahName: string;

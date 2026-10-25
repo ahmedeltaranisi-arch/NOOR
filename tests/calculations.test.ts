@@ -10,7 +10,13 @@ import {
   DEFAULT_CALCULATION_SETTINGS,
 } from "@/lib/prayer-times";
 import { calculateQiblaInfo, getShortestAngleDifference } from "@/lib/qibla";
-import { getSurahDetailById, searchQuranVerses, SURAHS_META } from "@/lib/quran";
+import {
+  getSurahDetailById,
+  searchQuranVerses,
+  SURAHS_META,
+  QURAN_JUZ_META,
+  getJuzDetailById,
+} from "@/lib/quran";
 import { getHijriDateInfo, normalizeArabicText } from "@/lib/utils";
 import { ALLAH_NAMES } from "@/data/daily-content";
 import { ADHKAR_CATEGORIES, ADHKAR_DATA } from "@/data/adhkar";
@@ -206,6 +212,18 @@ describe("4. التقويم الهجري والقرآن الكريم والأذ�
     expect(results[0].ayahNumber).toBe(255);
 
     expect(normalizeArabicText("بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ")).toBe("بسم الله الرحمن");
+
+    // Verify all 30 Juzs cover all 6,236 verses accurately without gaps or duplicates
+    expect(QURAN_JUZ_META.length).toBe(30);
+    let totalVersesAcross30Juzs = 0;
+    for (let j = 1; j <= 30; j++) {
+      const juzDetail = getJuzDetailById(j);
+      expect(juzDetail).toBeDefined();
+      expect(juzDetail!.segments.length).toBeGreaterThanOrEqual(1);
+      expect(juzDetail!.totalVersesInJuz).toBeGreaterThan(100);
+      totalVersesAcross30Juzs += juzDetail!.totalVersesInJuz;
+    }
+    expect(totalVersesAcross30Juzs).toBe(6236);
   });
 
   it("يتضمن جميع تصنيفات الأذكار الـ 7 وأسماء الله الحسنى الـ 99", () => {

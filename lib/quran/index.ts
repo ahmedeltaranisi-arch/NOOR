@@ -1,6 +1,11 @@
 import quranRawData from "@/data/quran-uthmani.json";
 import { Ayah, QuranSearchResult, SurahDetail } from "@/types";
 import { SURAHS_META, getSurahMetaById } from "@/lib/quran/metadata";
+import {
+  QURAN_JUZ_META,
+  getJuzMetaById,
+  getJuzDetailById,
+} from "@/lib/quran/juz";
 import { normalizeArabicText } from "@/lib/utils";
 
 interface RawSurah {
@@ -14,7 +19,13 @@ interface RawSurah {
 
 const QURAN_DATA = quranRawData as RawSurah[];
 
-export { SURAHS_META, getSurahMetaById };
+export {
+  SURAHS_META,
+  getSurahMetaById,
+  QURAN_JUZ_META,
+  getJuzMetaById,
+  getJuzDetailById,
+};
 
 export function getSurahDetailById(surahId: number): SurahDetail | undefined {
   const raw = QURAN_DATA.find((s) => s.id === surahId);
