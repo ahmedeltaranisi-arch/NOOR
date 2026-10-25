@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  AlertCircle,
   AlignJustify,
   Bookmark,
   BookOpen,
@@ -14,10 +15,19 @@ import {
   Copy,
   Layers,
   LayoutList,
+  Mic,
+  Pause,
+  Play,
   Share2,
+  SkipBack,
+  SkipForward,
+  Volume2,
+  VolumeX,
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
+import { QURAN_RECITERS } from "@/data/daily-content";
+import { getAyahAudioUrl, getSurahFallbackAudioUrl } from "@/lib/quran/audio";
 import {
   DEFAULT_QURAN_PREFS,
   getDailyWird,
@@ -46,6 +56,14 @@ const FONT_SIZE_CLASSES: Record<1 | 2 | 3 | 4, string> = {
   4: "text-4xl leading-[2.55] sm:text-5xl sm:leading-[2.6]",
 };
 
+interface JuzVerseItem {
+  index: number;
+  surahId: number;
+  surahName: string;
+  ayahNumber: number;
+  text: string;
+}
+
 export function JuzReaderClient({
   juz,
   allJuzs,
@@ -61,21 +79,36 @@ export function JuzReaderClient({
   const [prefs, setPrefs] = useState<QuranReaderPrefs>(DEFAULT_QURAN_PREFS);
   const [bookmarks, setBookmarks] = useState<QuranBookmark[]>([]);
   const [lastRead, setLastRead] = useState<LastReadPosition | null>(null);
-  const [selectedRef, setSelectedRef] = useState<{
-    surahId: number;
-    surahName: string;
-    ayahNumber: number;
-    text: string;
-  }>(() => {
-    const firstSeg = juz.segments[0];
-    const firstVerse = firstSeg?.verses[0];
-    return {
-      surahId: firstSeg?.surahId || 1,
-      surahName: firstSeg?.surahName || "الفاتحة",
-      ayahNumber: firstVerse?.id || 1,
-      text: firstVerse?.text || "",
-    };
-  });
+
+  // Build flat ordered playlist of all verses in this Juz across its Surahs
+  const juzPlaylist: JuzVerseItem[] = useMemo(() => {
+    const list: JuzVerseItem[] = [];
+    let idx = 0;
+    for (const seg of juz.segments) {
+      for (const verse of seg.verses) {
+        list.push({
+          index: idx++,
+          surahId: seg.surahId,
+          surahName: seg.surahName,
+          ayahNumber: verse.id,
+          text: verse.text,
+        });
+      }
+    }
+    return list;
+  }, [juz]);
+
+  const [selectedIndex, setSelectedIndex] = useState<number>(0);
+  const [playingIndex, setPlayingIndex] = useState<number>(0);
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [playbackRate, setPlaybackRate] = useState<number>(1);
+  const [volume, setVolume] = useState<number>(1);
+  const [isMuted, setIsMuted] = useState<boolean>(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
+  const [usingSurahFallback, setUsingSurahFallback] = useState<boolean>(false);
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [savedToast, setSavedToast] = useState<string | null>(null);
   const [juzCompletedToday, setJuzCompletedToday] = useState(false);
@@ -84,7 +117,25 @@ export function JuzReaderClient({
     setPrefs(getQuranPrefs());
     setBookmarks(getQuranBookmarks());
     setLastRead(getLastReadPosition());
+    setSelectedIndex(0);
+    setPlayingIndex(0);
+    setIsPlaying(false);
+    setAudioError(null);
+    setUsingSurahFallback(false);
+    audioRef.current?.pause();
   }, [juz.id]);
+
+  const currentReciter =
+    QURAN_RECITERS.find((r) => r.id === prefs.reciterId) || QURAN_RECITERS[0];
+
+  const selectedRef = juzPlaylist[selectedIndex] || juzPlaylist[0];
+  const playingRef = juzPlaylist[playingIndex] || juzPlaylist[0];
+
+  useEffect(() => {
+    if (!audioRef.current) return;
+    audioRef.current.playbackRate = playbackRate;
+    audioRef.current.volume = isMuted ? 0 : volume;
+  }, [playbackRate, volume, isMuted]);
 
   const updatePrefs = (partial: Partial<QuranReaderPrefs>) => {
     const updated = { ...prefs, ...partial };
@@ -95,6 +146,125 @@ export function JuzReaderClient({
   const showToast = (msg: string) => {
     setSavedToast(msg);
     setTimeout(() => setSavedToast(null), 3200);
+  };
+
+  const playVerseAtIndex = async (
+    idx: number,
+    reciterOverride?: (typeof QURAN_RECITERS)[number]
+  ) => {
+    const targetItem = juzPlaylist[idx];
+    if (!targetItem || !audioRef.current) return;
+
+    const activeReciter = reciterOverride || currentReciter;
+    setAudioError(null);
+    setUsingSurahFallback(false);
+    setPlayingIndex(idx);
+    setSelectedIndex(idx);
+
+    const url = getAyahAudioUrl(
+      targetItem.surahId,
+      targetItem.ayahNumber,
+      activeReciter.everyAyahFolder
+    );
+    audioRef.current.src = url;
+    audioRef.current.playbackRate = playbackRate;
+    audioRef.current.volume = isMuted ? 0 : volume;
+
+    try {
+      await audioRef.current.play();
+      setIsPlaying(true);
+
+      const el = document.getElementById(
+        `surah-${targetItem.surahId}-ayah-${targetItem.ayahNumber}`
+      );
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    } catch {
+      // Try full-Surah MP3 fallback if available
+      const fallbackUrl = getSurahFallbackAudioUrl(
+        targetItem.surahId,
+        activeReciter.surahAudioServerUrl
+      );
+      if (fallbackUrl && audioRef.current) {
+        try {
+          setUsingSurahFallback(true);
+          audioRef.current.src = fallbackUrl;
+          await audioRef.current.play();
+          setIsPlaying(true);
+          return;
+        } catch {
+          // fall through
+        }
+      }
+      setIsPlaying(false);
+      setAudioError(
+        "تعذر تشغيل التلاوة الصوتية حاليًا (تأكد من الاتصال بالإنترنت). النص القرآني للجزء متاح بالكامل."
+      );
+    }
+  };
+
+  const togglePlayPause = async () => {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      await playVerseAtIndex(playingIndex ?? selectedIndex ?? 0);
+    }
+  };
+
+  const handleAudioEnded = () => {
+    if (usingSurahFallback) {
+      // Advance to the first verse of the next Surah segment in this Juz, if any
+      const currentSurahId = playingRef?.surahId;
+      const nextSurahVerseIdx = juzPlaylist.findIndex(
+        (item, idx) => idx > playingIndex && item.surahId !== currentSurahId
+      );
+      if (nextSurahVerseIdx !== -1) {
+        playVerseAtIndex(nextSurahVerseIdx);
+      } else {
+        setIsPlaying(false);
+      }
+      return;
+    }
+
+    if (playingIndex < juzPlaylist.length - 1) {
+      playVerseAtIndex(playingIndex + 1);
+    } else {
+      setIsPlaying(false);
+    }
+  };
+
+  const handleAudioElementError = async () => {
+    if (!usingSurahFallback && playingRef && audioRef.current) {
+      const fallbackUrl = getSurahFallbackAudioUrl(
+        playingRef.surahId,
+        currentReciter.surahAudioServerUrl
+      );
+      if (fallbackUrl) {
+        try {
+          setUsingSurahFallback(true);
+          audioRef.current.src = fallbackUrl;
+          await audioRef.current.play();
+          setIsPlaying(true);
+          return;
+        } catch {
+          // fall through
+        }
+      }
+    }
+    setIsPlaying(false);
+    setAudioError(
+      "تعذر تحميل الملف الصوتي للآية. يرجى التحقق من اتصال الإنترنت."
+    );
+  };
+
+  const findPlaylistIndex = (surahId: number, ayahNum: number): number => {
+    const found = juzPlaylist.findIndex(
+      (item) => item.surahId === surahId && item.ayahNumber === ayahNum
+    );
+    return found >= 0 ? found : 0;
   };
 
   const handleSaveLastRead = (
@@ -221,6 +391,14 @@ export function JuzReaderClient({
 
   return (
     <div className="space-y-6">
+      {/* Hidden HTML5 Audio Element */}
+      <audio
+        ref={audioRef}
+        onEnded={handleAudioEnded}
+        onError={handleAudioElementError}
+        preload="none"
+      />
+
       {/* Toast Notification */}
       {savedToast && (
         <div
@@ -243,10 +421,26 @@ export function JuzReaderClient({
               <span>فهرس أجزاء القرآن (٣٠ جزءًا)</span>
             </Link>
 
-            <span className="inline-flex items-center gap-1.5 rounded-xl border border-gold/40 bg-gold/15 px-3 py-1.5 text-[11px] font-extrabold text-gold">
-              <BookOpen className="h-3.5 w-3.5" />
-              <span>وضع القراءة فقط</span>
-            </span>
+            {/* Quick Jump to Any of the 30 Juzs */}
+            <div className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-muted/40 px-2.5 py-1.5">
+              <Layers className="h-3.5 w-3.5 shrink-0 text-primary" />
+              <select
+                aria-label="الانتقال إلى جزء آخر"
+                value={juz.id}
+                onChange={(e) => router.push(`/quran/juz/${e.target.value}`)}
+                className="bg-transparent text-xs font-bold text-foreground focus:outline-none"
+              >
+                {allJuzs.map((item) => (
+                  <option
+                    key={item.id}
+                    value={item.id}
+                    className="bg-card text-foreground"
+                  >
+                    {toArabicDigits(item.id)}. {item.nameAr} ({item.titleAr})
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground sm:gap-2 sm:text-xs">
@@ -283,10 +477,50 @@ export function JuzReaderClient({
           </div>
         </div>
 
-        {/* Pure Reading Controls Toolbar: View Mode, Font Size, Quick Juz Selector */}
-        <div className="flex flex-col justify-between gap-3 pt-1 sm:flex-row sm:flex-wrap sm:items-center">
+        {/* 11 Sheikhs Quick Selector Pills for Juz Recitation */}
+        <div className="mb-4 rounded-2xl border border-gold/30 bg-muted/30 p-3.5 sm:p-4">
+          <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 text-xs font-extrabold text-foreground sm:text-sm">
+              <Mic className="h-4 w-4 text-primary" />
+              <span>اختر صوت القارئ لتلاوة {juz.nameAr} (١١ قارئًا معتمدًا):</span>
+            </div>
+            <span className="text-[11px] font-bold text-primary">
+              القارئ الحالي: {currentReciter.nameAr}
+            </span>
+          </div>
+
+          <div className="flex flex-wrap gap-1.5">
+            {QURAN_RECITERS.map((rec) => {
+              const active = prefs.reciterId === rec.id;
+              return (
+                <button
+                  key={rec.id}
+                  type="button"
+                  onClick={() => {
+                    updatePrefs({ reciterId: rec.id });
+                    if (isPlaying) {
+                      playVerseAtIndex(playingIndex, rec);
+                    }
+                  }}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all active:scale-95",
+                    active
+                      ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                      : "border-border bg-card text-foreground hover:border-primary/40 hover:text-primary"
+                  )}
+                >
+                  <Volume2 className={cn("h-3 w-3 shrink-0", active ? "text-gold" : "text-primary")} />
+                  <span>{rec.nameAr}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Reader & Audio Controls Toolbar */}
+        <div className="flex flex-col justify-between gap-3.5 pt-1 lg:flex-row lg:items-center">
+          {/* View Mode & Font Size */}
           <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-start sm:gap-3">
-            {/* Continuous Mushaf vs Verse Cards */}
             <div className="inline-flex rounded-xl border border-border bg-muted/50 p-1">
               <button
                 type="button"
@@ -318,7 +552,7 @@ export function JuzReaderClient({
 
             {/* Font Size Controls */}
             <div className="inline-flex items-center gap-1 rounded-xl border border-border bg-background px-2.5 py-1.5 sm:gap-1.5 sm:px-3">
-              <span className="text-xs font-semibold text-muted-foreground">حجم الخط:</span>
+              <span className="text-xs font-semibold text-muted-foreground">الخط:</span>
               <button
                 type="button"
                 onClick={() =>
@@ -351,29 +585,116 @@ export function JuzReaderClient({
             </div>
           </div>
 
-          {/* Quick Jump to Any of the 30 Juzs */}
-          <div className="flex items-center gap-2">
-            <Layers className="h-4 w-4 shrink-0 text-primary" />
-            <label htmlFor="juz-quick-select" className="text-xs font-bold text-muted-foreground">
-              انتقال لجزء:
-            </label>
+          {/* Audio Player Bar */}
+          <div className="flex flex-col gap-2 rounded-2xl border border-border bg-muted/40 p-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2.5">
             <select
-              id="juz-quick-select"
-              value={juz.id}
-              onChange={(e) => router.push(`/quran/juz/${e.target.value}`)}
-              className="flex-1 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground focus:border-primary focus:outline-none sm:flex-initial"
+              aria-label="اختيار القارئ"
+              value={prefs.reciterId}
+              onChange={(e) => {
+                const newRecId = e.target.value;
+                updatePrefs({ reciterId: newRecId });
+                const found = QURAN_RECITERS.find((r) => r.id === newRecId);
+                if (isPlaying && found) {
+                  playVerseAtIndex(playingIndex, found);
+                }
+              }}
+              className="w-full rounded-xl border border-border bg-card px-3 py-2 text-xs font-bold text-foreground sm:w-auto sm:py-1.5"
             >
-              {allJuzs.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {toArabicDigits(item.id)}. {item.nameAr} ({item.titleAr})
+              {QURAN_RECITERS.map((rec) => (
+                <option key={rec.id} value={rec.id}>
+                  {rec.nameAr}
                 </option>
               ))}
             </select>
+
+            <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-start">
+              <div className="flex items-center gap-1" dir="ltr">
+                <button
+                  type="button"
+                  onClick={() => playVerseAtIndex(Math.max(0, playingIndex - 1))}
+                  disabled={playingIndex <= 0}
+                  aria-label="الآية السابقة"
+                  className="rounded-lg p-1.5 text-foreground hover:bg-card disabled:opacity-40"
+                >
+                  <SkipBack className="h-4 w-4" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={togglePlayPause}
+                  aria-label={isPlaying ? "إيقاف التلاوة" : "تشغيل تلاوة الجزء"}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm transition hover:bg-primary/90 active:scale-95"
+                >
+                  {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    playVerseAtIndex(
+                      Math.min(juzPlaylist.length - 1, playingIndex + 1)
+                    )
+                  }
+                  disabled={playingIndex >= juzPlaylist.length - 1}
+                  aria-label="الآية التالية"
+                  className="rounded-lg p-1.5 text-foreground hover:bg-card disabled:opacity-40"
+                >
+                  <SkipForward className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <select
+                  aria-label="سرعة التلاوة"
+                  value={playbackRate}
+                  onChange={(e) => setPlaybackRate(Number(e.target.value))}
+                  className="rounded-lg border border-border bg-card px-2 py-1 text-xs font-bold text-foreground"
+                >
+                  <option value={0.75}>0.75x</option>
+                  <option value={1}>1x</option>
+                  <option value={1.25}>1.25x</option>
+                  <option value={1.5}>1.5x</option>
+                </select>
+
+                <button
+                  type="button"
+                  onClick={() => setIsMuted((prev) => !prev)}
+                  aria-label={isMuted ? "إلغاء كتم الصوت" : "كتم الصوت"}
+                  className="rounded-lg p-1.5 text-muted-foreground hover:bg-card hover:text-foreground"
+                >
+                  {isMuted ? (
+                    <VolumeX className="h-4 w-4" />
+                  ) : (
+                    <Volume2 className="h-4 w-4" />
+                  )}
+                </button>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={isMuted ? 0 : volume}
+                  onChange={(e) => {
+                    setIsMuted(false);
+                    setVolume(Number(e.target.value));
+                  }}
+                  aria-label="مستوى الصوت"
+                  className="hidden w-16 accent-primary sm:block"
+                />
+              </div>
+            </div>
           </div>
         </div>
+
+        {audioError && (
+          <div className="mt-3 flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-xs text-amber-800 dark:text-amber-300">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>{audioError}</span>
+          </div>
+        )}
       </div>
 
-      {/* Selected Ayah Reading Bar (in Mushaf continuous mode — Pure Reading Tools Only) */}
+      {/* Selected Ayah Quick Action Bar (in Mushaf continuous mode) */}
       {prefs.viewMode === "mushaf" && selectedRef && (
         <div className="sticky top-[58px] z-30 flex flex-col gap-2.5 rounded-2xl border border-gold/40 bg-card/95 p-3 shadow-md backdrop-blur-md sm:top-[72px] sm:px-4 sm:py-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
@@ -392,6 +713,36 @@ export function JuzReaderClient({
           <div className="flex shrink-0 flex-wrap items-center gap-1.5">
             <button
               type="button"
+              onClick={() => {
+                if (isPlaying && playingIndex === selectedRef.index) {
+                  setIsPlaying(false);
+                  audioRef.current?.pause();
+                } else {
+                  playVerseAtIndex(selectedRef.index);
+                }
+              }}
+              className={cn(
+                "inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-1.5 text-xs font-bold transition",
+                isPlaying && playingIndex === selectedRef.index
+                  ? "bg-red-600 text-white hover:bg-red-700"
+                  : "bg-primary text-primary-foreground hover:bg-primary/90"
+              )}
+            >
+              {isPlaying && playingIndex === selectedRef.index ? (
+                <>
+                  <Pause className="h-3.5 w-3.5" />
+                  <span>إيقاف التلاوة</span>
+                </>
+              ) : (
+                <>
+                  <Play className="h-3.5 w-3.5" />
+                  <span>استماع للآية</span>
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
               onClick={() =>
                 handleSaveLastRead(
                   selectedRef.surahId,
@@ -399,9 +750,9 @@ export function JuzReaderClient({
                   selectedRef.ayahNumber
                 )
               }
-              className="inline-flex items-center gap-1 whitespace-nowrap rounded-xl bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground transition hover:bg-primary/90"
+              className="inline-flex items-center gap-1 whitespace-nowrap rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground hover:border-primary hover:text-primary"
             >
-              <BookOpen className="h-3.5 w-3.5" />
+              <BookOpen className="h-3.5 w-3.5 text-primary" />
               <span>حفظ موضع القراءة</span>
             </button>
 
@@ -495,13 +846,26 @@ export function JuzReaderClient({
                 </div>
               </div>
 
-              <Link
-                href={`/quran/${seg.surahId}`}
-                className="inline-flex items-center gap-1 rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-bold text-primary transition hover:border-primary"
-              >
-                <span>فتح السورة كاملة</span>
-                <ChevronLeft className="h-3.5 w-3.5" />
-              </Link>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    playVerseAtIndex(findPlaylistIndex(seg.surahId, seg.startAyah))
+                  }
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground transition hover:bg-primary/90"
+                >
+                  <Play className="h-3 w-3 fill-current" />
+                  <span>تلاوة من بداية السورة بالجزء</span>
+                </button>
+
+                <Link
+                  href={`/quran/${seg.surahId}`}
+                  className="inline-flex items-center gap-1 rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-bold text-primary transition hover:border-primary"
+                >
+                  <span>السورة كاملة</span>
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </Link>
+              </div>
             </div>
 
             {/* Bismillah Banner if Surah starts at verse 1 (except Al-Fatihah & At-Tawbah) */}
@@ -523,9 +887,9 @@ export function JuzReaderClient({
                   )}
                 >
                   {seg.verses.map((verse) => {
-                    const isSelected =
-                      selectedRef.surahId === seg.surahId &&
-                      selectedRef.ayahNumber === verse.id;
+                    const pIdx = findPlaylistIndex(seg.surahId, verse.id);
+                    const isSelected = selectedIndex === pIdx;
+                    const isCurrentlyPlaying = isPlaying && playingIndex === pIdx;
                     const isSavedPos =
                       lastRead?.surahId === seg.surahId &&
                       lastRead?.ayahNumber === verse.id;
@@ -534,17 +898,12 @@ export function JuzReaderClient({
                       <span
                         key={`${seg.surahId}:${verse.id}`}
                         id={`surah-${seg.surahId}-ayah-${verse.id}`}
-                        onClick={() =>
-                          setSelectedRef({
-                            surahId: seg.surahId,
-                            surahName: seg.surahName,
-                            ayahNumber: verse.id,
-                            text: verse.text,
-                          })
-                        }
+                        onClick={() => setSelectedIndex(pIdx)}
                         className={cn(
                           "inline cursor-pointer rounded-xl px-1.5 py-0.5 transition-colors",
-                          isSelected
+                          isCurrentlyPlaying
+                            ? "bg-primary/20 text-primary ring-1 ring-primary/40"
+                            : isSelected
                             ? "bg-gold-muted/70 text-foreground"
                             : isSavedPos
                             ? "underline decoration-gold decoration-2 underline-offset-8"
@@ -564,9 +923,11 @@ export function JuzReaderClient({
                 </div>
               </article>
             ) : (
-              /* MODE 2: Verse-by-Verse Reading Cards (No Audio) */
+              /* MODE 2: Verse-by-Verse Cards */
               <div className="space-y-3.5">
                 {seg.verses.map((verse) => {
+                  const pIdx = findPlaylistIndex(seg.surahId, verse.id);
+                  const isCurrentlyPlaying = isPlaying && playingIndex === pIdx;
                   const isSavedPos =
                     lastRead?.surahId === seg.surahId &&
                     lastRead?.ayahNumber === verse.id;
@@ -578,8 +939,10 @@ export function JuzReaderClient({
                       key={copyKey}
                       id={`surah-${seg.surahId}-ayah-${verse.id}`}
                       className={cn(
-                        "rounded-3xl border p-4 transition-all sm:p-6",
-                        isSavedPos
+                        "scroll-mt-28 rounded-3xl border p-4 transition-all sm:p-6",
+                        isCurrentlyPlaying
+                          ? "border-primary bg-primary/5 shadow-md"
+                          : isSavedPos
                           ? "border-gold bg-gold-muted/20"
                           : "border-border bg-card shadow-soft"
                       )}
@@ -600,6 +963,15 @@ export function JuzReaderClient({
                         </div>
 
                         <div className="flex flex-wrap items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => playVerseAtIndex(pIdx)}
+                            className="inline-flex items-center gap-1 rounded-xl bg-primary/10 px-2.5 py-1.5 text-xs font-bold text-primary hover:bg-primary hover:text-primary-foreground"
+                          >
+                            <Play className="h-3.5 w-3.5" />
+                            <span>استماع</span>
+                          </button>
+
                           <button
                             type="button"
                             onClick={() =>

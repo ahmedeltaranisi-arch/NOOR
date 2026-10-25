@@ -18,7 +18,7 @@ import {
   getJuzDetailById,
 } from "@/lib/quran";
 import { getHijriDateInfo, normalizeArabicText } from "@/lib/utils";
-import { ALLAH_NAMES } from "@/data/daily-content";
+import { ALLAH_NAMES, QURAN_RECITERS } from "@/data/daily-content";
 import { ADHKAR_CATEGORIES, ADHKAR_DATA } from "@/data/adhkar";
 import { ADHAN_VOICES_META } from "@/lib/storage/local-storage";
 import fs from "fs";
@@ -224,6 +224,25 @@ describe("4. التقويم الهجري والقرآن الكريم والأذ�
       totalVersesAcross30Juzs += juzDetail!.totalVersesInJuz;
     }
     expect(totalVersesAcross30Juzs).toBe(6236);
+
+    // Verify all 11 requested Sheikhs are present for Juz & Surah recitation
+    expect(QURAN_RECITERS.length).toBe(11);
+    const expectedSheikhs = [
+      "الشيخ عبد الباسط عبد الصمد",
+      "الشيخ محمد صديق المنشاوي",
+      "الشيخ محمود خليل الحصري",
+      "الشيخ مصطفى إسماعيل",
+      "الشيخ ماهر المعيقلي",
+      "الشيخ عبد الرحمن السديس",
+      "الشيخ مشاري بن راشد العفاسي",
+      "الشيخ ياسر الدوسري",
+      "الشيخ أحمد بن علي العجمي",
+      "الشيخ فارس عباد",
+      "الشيخ ناصر القطامي",
+    ];
+    for (const sName of expectedSheikhs) {
+      expect(QURAN_RECITERS.map((r) => r.nameAr)).toContain(sName);
+    }
   });
 
   it("يتضمن جميع تصنيفات الأذكار الـ 7 وأسماء الله الحسنى الـ 99", () => {

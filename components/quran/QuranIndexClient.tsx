@@ -17,12 +17,17 @@ import {
   Trash2,
 } from "lucide-react";
 import { QURAN_JUZ_META } from "@/lib/quran/juz";
+import { QURAN_RECITERS } from "@/data/daily-content";
 import {
   DEFAULT_DAILY_WIRD,
+  DEFAULT_QURAN_PREFS,
   getDailyWird,
   getLastReadPosition,
   getQuranBookmarks,
+  getQuranPrefs,
+  QuranReaderPrefs,
   saveDailyWird,
+  saveQuranPrefs,
   STORAGE_CHANGE_EVENT,
   toggleQuranBookmark,
 } from "@/lib/storage/local-storage";
@@ -59,11 +64,13 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
   const [lastRead, setLastRead] = useState<LastReadPosition | null>(null);
   const [bookmarks, setBookmarks] = useState<QuranBookmark[]>([]);
   const [wird, setWird] = useState<DailyWirdSettings>(DEFAULT_DAILY_WIRD);
+  const [prefs, setPrefs] = useState<QuranReaderPrefs>(DEFAULT_QURAN_PREFS);
 
   useEffect(() => {
     setLastRead(getLastReadPosition());
     setBookmarks(getQuranBookmarks());
     setWird(getDailyWird());
+    setPrefs(getQuranPrefs());
 
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -81,10 +88,17 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
       setLastRead(getLastReadPosition());
       setBookmarks(getQuranBookmarks());
       setWird(getDailyWird());
+      setPrefs(getQuranPrefs());
     };
     window.addEventListener(STORAGE_CHANGE_EVENT, sync);
     return () => window.removeEventListener(STORAGE_CHANGE_EVENT, sync);
   }, []);
+
+  const handleSelectReciterForJuz = (reciterId: string) => {
+    const updated = { ...prefs, reciterId };
+    setPrefs(updated);
+    saveQuranPrefs(updated);
+  };
 
   const filteredJuzs = useMemo(() => {
     const q = normalizeArabicText(juzSearchQuery);
@@ -368,7 +382,7 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
             <Layers className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
             <span className="sm:hidden">الأجزاء ({toArabicDigits(30)})</span>
             <span className="hidden sm:inline">
-              أجزاء القرآن ({toArabicDigits(30)} جزءًا — للقراءة فقط)
+              أجزاء القرآن ({toArabicDigits(30)} جزءًا)
             </span>
           </button>
 
@@ -550,23 +564,23 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
             })}
           </div>
 
-          {/* Dedicated 30 Juz Reading Section inside Quran Page */}
+          {/* Dedicated 30 Juz Reading & Recitation Section inside Quran Page */}
           <section
             id="quran-juz"
-            aria-label="أجزاء القرآن الكريم الثلاثون للقراءة فقط"
+            aria-label="أجزاء القرآن الكريم الثلاثون"
             className="scroll-mt-24 space-y-5 rounded-3xl border border-gold/35 bg-card p-4 shadow-soft sm:p-6 md:p-8"
           >
             <div className="flex flex-col justify-between gap-3 border-b border-border/70 pb-4 sm:flex-row sm:items-center">
               <div>
                 <div className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/15 px-3 py-1 text-xs font-extrabold text-gold">
                   <Layers className="h-3.5 w-3.5" />
-                  <span>٣٠ جزءًا كاملًا • وضع القراءة الخالصة فقط</span>
+                  <span>٣٠ جزءًا كاملًا • القراءة والتلاوة بأصوات ١١ شيخًا</span>
                 </div>
                 <h2 className="mt-2 text-xl font-extrabold text-foreground sm:text-2xl">
-                  أجزاء القرآن الكريم (٣٠ جزءًا — للقراءة فقط)
+                  أجزاء القرآن الكريم (٣٠ جزءًا)
                 </h2>
                 <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-                  اختر أي جزء من الأجزاء الثلاثين لقراءته كاملًا بالرسم العثماني دون مشغلات صوتية
+                  اختر الشيخ المفضل وتصفح أي جزء من الأجزاء الثلاثين بالرسم العثماني مع التلاوة المتصلة
                 </p>
               </div>
 
@@ -578,6 +592,33 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
                 <BookOpen className="h-4 w-4" />
                 <span>فتح فهرس الأجزاء المفصل</span>
               </button>
+            </div>
+
+            {/* 11 Sheikhs Selector Bar for Juzs */}
+            <div className="rounded-2xl border border-border/80 bg-muted/35 p-3.5">
+              <div className="mb-2 text-xs font-extrabold text-foreground">
+                اختر صوت القارئ المفضل للأجزاء (١١ شيخًا):
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {QURAN_RECITERS.map((rec) => {
+                  const active = prefs.reciterId === rec.id;
+                  return (
+                    <button
+                      key={rec.id}
+                      type="button"
+                      onClick={() => handleSelectReciterForJuz(rec.id)}
+                      className={cn(
+                        "rounded-xl border px-3 py-1.5 text-xs font-bold transition-all active:scale-95",
+                        active
+                          ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                          : "border-border bg-card text-foreground hover:border-primary/40 hover:text-primary"
+                      )}
+                    >
+                      {rec.nameAr}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -597,7 +638,7 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
                           {juz.nameAr}
                         </h3>
                         <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
-                          قراءة فقط
+                          قراءة وتلاوة
                         </span>
                       </div>
                       <p className="mt-0.5 truncate text-xs font-semibold text-gold">
@@ -615,7 +656,7 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
                       ص {toArabicDigits(juz.pageStart)}–{toArabicDigits(juz.pageEnd)}
                     </div>
                     <div className="mt-1 inline-flex items-center gap-0.5 text-[11px] font-bold text-primary">
-                      <span>قراءة</span>
+                      <span>فتح الجزء</span>
                       <ChevronLeft className="h-3 w-3" />
                     </div>
                   </div>
@@ -626,32 +667,61 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
         </div>
       )}
 
-      {/* TAB 2: 30 Juzs Pure Reading Index */}
+      {/* TAB 2: 30 Juzs Reading & Recitation Index */}
       {activeTab === "juz" && (
         <div className="space-y-6">
-          <div className="flex flex-col justify-between gap-4 rounded-3xl border border-gold/35 bg-card p-4 shadow-soft sm:flex-row sm:items-center sm:p-6">
-            <div>
-              <div className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/15 px-3 py-1 text-xs font-extrabold text-gold">
-                <BookOpen className="h-3.5 w-3.5" />
-                <span>مصحف القراءة الخالصة • ٣٠ جزءًا</span>
+          <div className="space-y-4 rounded-3xl border border-gold/35 bg-card p-4 shadow-soft sm:p-6">
+            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+              <div>
+                <div className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/15 px-3 py-1 text-xs font-extrabold text-gold">
+                  <BookOpen className="h-3.5 w-3.5" />
+                  <span>الأجزاء الثلاثون • بأصوات ١١ شيخًا معتمدًا</span>
+                </div>
+                <h2 className="mt-2 text-xl font-extrabold text-foreground sm:text-2xl">
+                  فهرس أجزاء القرآن الكريم (٣٠ جزءًا)
+                </h2>
+                <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
+                  جميع أجزاء المصحف الشريف الثلاثين مرتبة ومقسمة بدقة للقراءة المباشرة والاستماع لتلاوات كبار القراء
+                </p>
               </div>
-              <h2 className="mt-2 text-xl font-extrabold text-foreground sm:text-2xl">
-                فهرس أجزاء القرآن الكريم (٣٠ جزءًا — للقراءة فقط)
-              </h2>
-              <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-                جميع أجزاء المصحف الشريف الثلاثين مرتبة ومقسمة بدقة للقراءة المباشرة بالرسم العثماني
-              </p>
+
+              <div className="relative w-full sm:w-72">
+                <Search className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="search"
+                  value={juzSearchQuery}
+                  onChange={(e) => setJuzSearchQuery(e.target.value)}
+                  placeholder="ابحث برقم الجزء أو اسمه أو السورة..."
+                  className="w-full rounded-xl border border-border bg-background py-2.5 pl-4 pr-10 text-xs font-semibold text-foreground focus:border-primary focus:outline-none sm:text-sm"
+                />
+              </div>
             </div>
 
-            <div className="relative w-full sm:w-72">
-              <Search className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="search"
-                value={juzSearchQuery}
-                onChange={(e) => setJuzSearchQuery(e.target.value)}
-                placeholder="ابحث برقم الجزء أو اسمه أو السورة..."
-                className="w-full rounded-xl border border-border bg-background py-2.5 pl-4 pr-10 text-xs font-semibold text-foreground focus:border-primary focus:outline-none sm:text-sm"
-              />
+            {/* 11 Sheikhs Selector Bar */}
+            <div className="rounded-2xl border border-border/80 bg-muted/35 p-3.5">
+              <div className="mb-2 text-xs font-extrabold text-foreground">
+                القارئ المختار لتلاوة الأجزاء (١١ قارئًا):
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {QURAN_RECITERS.map((rec) => {
+                  const active = prefs.reciterId === rec.id;
+                  return (
+                    <button
+                      key={rec.id}
+                      type="button"
+                      onClick={() => handleSelectReciterForJuz(rec.id)}
+                      className={cn(
+                        "rounded-xl border px-3 py-1.5 text-xs font-bold transition-all active:scale-95",
+                        active
+                          ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                          : "border-border bg-card text-foreground hover:border-primary/40 hover:text-primary"
+                      )}
+                    >
+                      {rec.nameAr}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
@@ -679,7 +749,7 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
                     </div>
 
                     <span className="rounded-full border border-gold/30 bg-gold/10 px-2.5 py-0.5 text-[10px] font-extrabold text-gold">
-                      للقراءة فقط
+                      قراءة وتلاوة
                     </span>
                   </div>
 
