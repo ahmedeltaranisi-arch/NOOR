@@ -19,6 +19,16 @@ import {
 } from "@/lib/quran";
 import { getHijriDateInfo, normalizeArabicText } from "@/lib/utils";
 import { ALLAH_NAMES, QURAN_RECITERS } from "@/data/daily-content";
+import {
+  formatAudioTime,
+  getAyahAudioUrl,
+  getPreloadWindowIndices,
+  getSurahFallbackAudioUrl,
+  HAVE_ENOUGH_DATA_READY_STATE,
+  PRELOAD_AHEAD_COUNT,
+  shouldSmartCrossTrigger,
+  SMART_CROSS_TRIGGER_LEAD_SECONDS,
+} from "@/lib/quran/audio";
 import { ADHKAR_CATEGORIES, ADHKAR_DATA } from "@/data/adhkar";
 import { ADHAN_VOICES_META } from "@/lib/storage/local-storage";
 import fs from "fs";
@@ -290,5 +300,30 @@ describe("4. التقويم الهجري والقرآن الكريم والأذ�
       const stat = fs.statSync(alertPath);
       expect(stat.size).toBeGreaterThan(8 * 1024); // > 8 KB
     }
+  });
+
+  it("يدعم التحميل المسبق المزدوج للآيتين القادمتين والانتقال الذكي (120ms) والبث المتصل للسور", () => {
+    expect(PRELOAD_AHEAD_COUNT).toBe(2);
+    expect(HAVE_ENOUGH_DATA_READY_STATE).toBe(4);
+    expect(SMART_CROSS_TRIGGER_LEAD_SECONDS).toBe(0.12);
+
+    // Preload window returns exact next 2 verses in the playlist
+    expect(getPreloadWindowIndices(0, 7)).toEqual([1, 2]);
+    expect(getPreloadWindowIndices(5, 7)).toEqual([6]);
+    expect(getPreloadWindowIndices(6, 7)).toEqual([]);
+
+    // Smart Cross-Trigger activates within 120ms before the end of an ayah file
+    expect(shouldSmartCrossTrigger(4.5, 5.0)).toBe(false);
+    expect(shouldSmartCrossTrigger(4.89, 5.0)).toBe(true);
+    expect(shouldSmartCrossTrigger(0.2, 0.4)).toBe(false); // ignores tiny durations <= 0.6s
+
+    // Every reciter has both EveryAyah folder and continuous Surah stream server URL
+    for (const rec of QURAN_RECITERS) {
+      expect(getAyahAudioUrl(1, 1, rec.everyAyahFolder)).toContain("/001001.mp3");
+      expect(rec.surahAudioServerUrl).toBeTruthy();
+      expect(getSurahFallbackAudioUrl(2, rec.surahAudioServerUrl)).toContain("/002.mp3");
+    }
+
+    expect(formatAudioTime(125)).toBe("02:05");
   });
 });

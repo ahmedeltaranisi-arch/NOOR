@@ -243,6 +243,8 @@ export interface DailyWirdSettings {
   history: Record<string, { target: number; unit: WirdUnit; completedAmount: number; completed: boolean }>;
 }
 
+export type QuranAudioMode = "gapless-ayah" | "continuous-surah";
+
 export interface ReciterInfo {
   id: string;
   nameAr: string;

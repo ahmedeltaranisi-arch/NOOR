@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -18,16 +18,28 @@ import {
   Mic,
   Pause,
   Play,
+  Radio,
   Share2,
   SkipBack,
   SkipForward,
+  Sparkles,
   Volume2,
   VolumeX,
+  Zap,
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
 import { QURAN_RECITERS } from "@/data/daily-content";
-import { getAyahAudioUrl, getSurahFallbackAudioUrl } from "@/lib/quran/audio";
+import {
+  formatAudioTime,
+  getAyahAudioUrl,
+  getPreloadWindowIndices,
+  getSurahFallbackAudioUrl,
+  HAVE_ENOUGH_DATA_READY_STATE,
+  PRELOAD_AHEAD_COUNT,
+  shouldSmartCrossTrigger,
+  SMART_CROSS_TRIGGER_LEAD_SECONDS,
+} from "@/lib/quran/audio";
 import {
   DEFAULT_QURAN_PREFS,
   getDailyWird,
@@ -46,6 +58,7 @@ import {
   JuzDetail,
   JuzMeta,
   LastReadPosition,
+  QuranAudioMode,
   QuranBookmark,
 } from "@/types";
 
@@ -107,11 +120,50 @@ export function JuzReaderClient({
   const [audioError, setAudioError] = useState<string | null>(null);
   const [usingSurahFallback, setUsingSurahFallback] = useState<boolean>(false);
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  // Dual-Audio Gapless Preloader State & Refs
+  const audioSlotARef = useRef<HTMLAudioElement | null>(null);
+  const audioSlotBRef = useRef<HTMLAudioElement | null>(null);
+  const activeSlotRef = useRef<"A" | "B">("A");
+  const preloadCacheRef = useRef<Map<string, HTMLAudioElement>>(new Map());
+  const crossTriggeredIndexRef = useRef<number | null>(null);
+  const playingIndexRef = useRef<number>(0);
+  const [preloadedReadyCount, setPreloadedReadyCount] = useState<number>(0);
+
+  // Continuous Stream Progress State
+  const [streamCurrentTime, setStreamCurrentTime] = useState<number>(0);
+  const [streamDuration, setStreamDuration] = useState<number>(0);
 
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [savedToast, setSavedToast] = useState<string | null>(null);
   const [juzCompletedToday, setJuzCompletedToday] = useState(false);
+
+  const audioMode: QuranAudioMode = prefs.audioMode || "gapless-ayah";
+  const smartCrossTriggerEnabled = prefs.smartCrossTriggerEnabled !== false;
+
+  const getActiveAudio = useCallback((): HTMLAudioElement | null => {
+    return activeSlotRef.current === "A"
+      ? audioSlotARef.current
+      : audioSlotBRef.current;
+  }, []);
+
+  const getStandbyAudio = useCallback((): HTMLAudioElement | null => {
+    return activeSlotRef.current === "A"
+      ? audioSlotBRef.current
+      : audioSlotARef.current;
+  }, []);
+
+  const stopAllAudio = useCallback(() => {
+    if (audioSlotARef.current) {
+      audioSlotARef.current.pause();
+    }
+    if (audioSlotBRef.current) {
+      audioSlotBRef.current.pause();
+    }
+  }, []);
+
+  useEffect(() => {
+    playingIndexRef.current = playingIndex;
+  }, [playingIndex]);
 
   useEffect(() => {
     setPrefs(getQuranPrefs());
@@ -119,11 +171,17 @@ export function JuzReaderClient({
     setLastRead(getLastReadPosition());
     setSelectedIndex(0);
     setPlayingIndex(0);
+    playingIndexRef.current = 0;
     setIsPlaying(false);
     setAudioError(null);
     setUsingSurahFallback(false);
-    audioRef.current?.pause();
-  }, [juz.id]);
+    setPreloadedReadyCount(0);
+    setStreamCurrentTime(0);
+    setStreamDuration(0);
+    crossTriggeredIndexRef.current = null;
+    stopAllAudio();
+    preloadCacheRef.current.clear();
+  }, [juz.id, stopAllAudio]);
 
   const currentReciter =
     QURAN_RECITERS.find((r) => r.id === prefs.reciterId) || QURAN_RECITERS[0];
@@ -132,9 +190,15 @@ export function JuzReaderClient({
   const playingRef = juzPlaylist[playingIndex] || juzPlaylist[0];
 
   useEffect(() => {
-    if (!audioRef.current) return;
-    audioRef.current.playbackRate = playbackRate;
-    audioRef.current.volume = isMuted ? 0 : volume;
+    const effVol = isMuted ? 0 : volume;
+    if (audioSlotARef.current) {
+      audioSlotARef.current.playbackRate = playbackRate;
+      audioSlotARef.current.volume = effVol;
+    }
+    if (audioSlotBRef.current) {
+      audioSlotBRef.current.playbackRate = playbackRate;
+      audioSlotBRef.current.volume = effVol;
+    }
   }, [playbackRate, volume, isMuted]);
 
   const updatePrefs = (partial: Partial<QuranReaderPrefs>) => {
@@ -148,96 +212,406 @@ export function JuzReaderClient({
     setTimeout(() => setSavedToast(null), 3200);
   };
 
-  const playVerseAtIndex = async (
-    idx: number,
-    reciterOverride?: (typeof QURAN_RECITERS)[number]
-  ) => {
-    const targetItem = juzPlaylist[idx];
-    if (!targetItem || !audioRef.current) return;
+  /**
+   * 1. Dual-Audio Gapless Preloader:
+   * Preloads the next 2 upcoming verses (idx + 1 and idx + 2) completely into memory
+   * aiming for readyState = 4 (HAVE_ENOUGH_DATA), and primes the standby <audio> slot
+   * with idx + 1 so transition happens in 0.00s without waiting for network.
+   */
+  const syncPreloadWindow = useCallback(
+    (
+      baseIdx: number,
+      reciter: (typeof QURAN_RECITERS)[number],
+      modeOverride?: QuranAudioMode
+    ) => {
+      if (typeof window === "undefined") return;
+      const effectiveMode = modeOverride || audioMode;
 
-    const activeReciter = reciterOverride || currentReciter;
-    setAudioError(null);
-    setUsingSurahFallback(false);
-    setPlayingIndex(idx);
-    setSelectedIndex(idx);
-
-    const url = getAyahAudioUrl(
-      targetItem.surahId,
-      targetItem.ayahNumber,
-      activeReciter.everyAyahFolder
-    );
-    audioRef.current.src = url;
-    audioRef.current.playbackRate = playbackRate;
-    audioRef.current.volume = isMuted ? 0 : volume;
-
-    try {
-      await audioRef.current.play();
-      setIsPlaying(true);
-
-      const el = document.getElementById(
-        `surah-${targetItem.surahId}-ayah-${targetItem.ayahNumber}`
-      );
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      // In Continuous Stream mode, preload the next Surah's stream in standby slot
+      if (effectiveMode === "continuous-surah") {
+        const curItem = juzPlaylist[baseIdx];
+        if (!curItem) return;
+        const nextSurahItem = juzPlaylist.find(
+          (item, i) => i > baseIdx && item.surahId !== curItem.surahId
+        );
+        const standby = getStandbyAudio();
+        if (nextSurahItem && standby && reciter.surahAudioServerUrl) {
+          const nextStreamUrl = getSurahFallbackAudioUrl(
+            nextSurahItem.surahId,
+            reciter.surahAudioServerUrl
+          );
+          if (nextStreamUrl && standby.src !== nextStreamUrl) {
+            standby.preload = "auto";
+            standby.src = nextStreamUrl;
+            standby.load();
+          }
+        }
+        setPreloadedReadyCount(1);
+        return;
       }
-    } catch {
-      // Try full-Surah MP3 fallback if available
-      const fallbackUrl = getSurahFallbackAudioUrl(
-        targetItem.surahId,
-        activeReciter.surahAudioServerUrl
+
+      const upcomingIndices = getPreloadWindowIndices(
+        baseIdx,
+        juzPlaylist.length,
+        PRELOAD_AHEAD_COUNT
       );
-      if (fallbackUrl && audioRef.current) {
-        try {
+      if (upcomingIndices.length === 0) {
+        setPreloadedReadyCount(0);
+        return;
+      }
+
+      const activeUrls = new Set<string>();
+      const recomputeReadyCount = () => {
+        let ready = 0;
+        for (const uIdx of upcomingIndices) {
+          const item = juzPlaylist[uIdx];
+          if (!item) continue;
+          const u = getAyahAudioUrl(
+            item.surahId,
+            item.ayahNumber,
+            reciter.everyAyahFolder
+          );
+          const cached = preloadCacheRef.current.get(u);
+          if (cached && cached.readyState >= HAVE_ENOUGH_DATA_READY_STATE) {
+            ready++;
+          }
+        }
+        setPreloadedReadyCount(ready);
+      };
+
+      upcomingIndices.forEach((uIdx, offsetIdx) => {
+        const item = juzPlaylist[uIdx];
+        if (!item) return;
+        const url = getAyahAudioUrl(
+          item.surahId,
+          item.ayahNumber,
+          reciter.everyAyahFolder
+        );
+        activeUrls.add(url);
+
+        // Prime standby DOM <audio> slot with the immediate next verse (idx + 1)
+        if (offsetIdx === 0) {
+          const standby = getStandbyAudio();
+          if (standby && standby.src !== url) {
+            standby.preload = "auto";
+            standby.src = url;
+            standby.playbackRate = playbackRate;
+            standby.volume = isMuted ? 0 : volume;
+            standby.load();
+          }
+        }
+
+        // Also buffer both idx + 1 and idx + 2 in our memory Preload Cache (readyState = 4)
+        let memAudio = preloadCacheRef.current.get(url);
+        if (!memAudio) {
+          memAudio = new Audio();
+          memAudio.preload = "auto";
+          memAudio.src = url;
+          memAudio.addEventListener("canplaythrough", recomputeReadyCount, {
+            once: true,
+          });
+          memAudio.addEventListener("loadeddata", recomputeReadyCount, {
+            once: true,
+          });
+          memAudio.load();
+          preloadCacheRef.current.set(url, memAudio);
+        }
+      });
+
+      // Evict stale preloaded audio objects outside the current window
+      const curItem = juzPlaylist[baseIdx];
+      if (curItem) {
+        activeUrls.add(
+          getAyahAudioUrl(
+            curItem.surahId,
+            curItem.ayahNumber,
+            reciter.everyAyahFolder
+          )
+        );
+      }
+      for (const [keyUrl, audioObj] of preloadCacheRef.current.entries()) {
+        if (!activeUrls.has(keyUrl)) {
+          audioObj.pause();
+          audioObj.src = "";
+          preloadCacheRef.current.delete(keyUrl);
+        }
+      }
+
+      recomputeReadyCount();
+    },
+    [
+      audioMode,
+      getStandbyAudio,
+      isMuted,
+      juzPlaylist,
+      playbackRate,
+      volume,
+    ]
+  );
+
+  // Keep upcoming 2 verses preloaded even before pressing play or when changing selection
+  useEffect(() => {
+    syncPreloadWindow(playingIndex, currentReciter);
+  }, [playingIndex, currentReciter, syncPreloadWindow]);
+
+  /**
+   * Plays a specific verse index (in Gapless Ayah-by-Ayah mode) OR starts the
+   * full uninterrupted Surah broadcast (in Continuous Stream mode).
+   */
+  const playVerseAtIndex = useCallback(
+    async (
+      idx: number,
+      options?: {
+        reciterOverride?: (typeof QURAN_RECITERS)[number];
+        modeOverride?: QuranAudioMode;
+        usePreloadedStandby?: boolean;
+      }
+    ) => {
+      const targetItem = juzPlaylist[idx];
+      if (!targetItem) return;
+
+      const activeReciter = options?.reciterOverride || currentReciter;
+      const effectiveMode = options?.modeOverride || audioMode;
+
+      setAudioError(null);
+      setPlayingIndex(idx);
+      playingIndexRef.current = idx;
+      setSelectedIndex(idx);
+      crossTriggeredIndexRef.current = null;
+
+      // MODE 2: Continuous Radio/Surah Stream (mp3quran.net)
+      if (effectiveMode === "continuous-surah") {
+        const streamUrl = getSurahFallbackAudioUrl(
+          targetItem.surahId,
+          activeReciter.surahAudioServerUrl
+        );
+        const activeAudio = getActiveAudio();
+        const standbyAudio = getStandbyAudio();
+
+        if (streamUrl && activeAudio) {
           setUsingSurahFallback(true);
-          audioRef.current.src = fallbackUrl;
-          await audioRef.current.play();
+          if (standbyAudio && standbyAudio.src === streamUrl && options?.usePreloadedStandby) {
+            activeAudio.pause();
+            activeSlotRef.current = activeSlotRef.current === "A" ? "B" : "A";
+          }
+          const player = getActiveAudio()!;
+          if (player.src !== streamUrl) {
+            player.src = streamUrl;
+          }
+          player.playbackRate = playbackRate;
+          player.volume = isMuted ? 0 : volume;
+          try {
+            await player.play();
+            setIsPlaying(true);
+            syncPreloadWindow(idx, activeReciter, "continuous-surah");
+            const el = document.getElementById(
+              `surah-${targetItem.surahId}-ayah-${targetItem.ayahNumber}`
+            );
+            if (el) {
+              el.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+            return;
+          } catch {
+            // Fall through to ayah-by-ayah if stream fails
+          }
+        }
+      }
+
+      // MODE 1: Gapless Ayah-by-Ayah with Dual-Slot Instant Swap
+      setUsingSurahFallback(false);
+      const targetUrl = getAyahAudioUrl(
+        targetItem.surahId,
+        targetItem.ayahNumber,
+        activeReciter.everyAyahFolder
+      );
+
+      let player = getActiveAudio();
+      const standby = getStandbyAudio();
+
+      // If standby slot already has targetUrl preloaded, swap slots for 0ms gapless playback!
+      if (
+        standby &&
+        standby.src === targetUrl &&
+        (options?.usePreloadedStandby || standby.readyState >= 2)
+      ) {
+        if (player) {
+          player.pause();
+          player.currentTime = 0;
+        }
+        activeSlotRef.current = activeSlotRef.current === "A" ? "B" : "A";
+        player = standby;
+      } else if (player) {
+        if (standby) {
+          standby.pause();
+        }
+        if (player.src !== targetUrl) {
+          player.src = targetUrl;
+        }
+      }
+
+      if (!player) return;
+      player.playbackRate = playbackRate;
+      player.volume = isMuted ? 0 : volume;
+
+      try {
+        player.currentTime = 0;
+        await player.play();
+        setIsPlaying(true);
+
+        // Immediately preload the next 2 verses (idx + 1 and idx + 2) in memory (readyState = 4)
+        syncPreloadWindow(idx, activeReciter, "gapless-ayah");
+
+        const el = document.getElementById(
+          `surah-${targetItem.surahId}-ayah-${targetItem.ayahNumber}`
+        );
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      } catch {
+        // Automatic fallback to Continuous Surah Stream if an individual ayah file is missing
+        const fallbackUrl = getSurahFallbackAudioUrl(
+          targetItem.surahId,
+          activeReciter.surahAudioServerUrl
+        );
+        if (fallbackUrl && player) {
+          try {
+            setUsingSurahFallback(true);
+            player.src = fallbackUrl;
+            await player.play();
+            setIsPlaying(true);
+            return;
+          } catch {
+            // fall through
+          }
+        }
+        setIsPlaying(false);
+        setAudioError(
+          "تعذر تشغيل التلاوة الصوتية حاليًا (تأكد من الاتصال بالإنترنت). النص القرآني للجزء متاح بالكامل."
+        );
+      }
+    },
+    [
+      audioMode,
+      currentReciter,
+      getActiveAudio,
+      getStandbyAudio,
+      isMuted,
+      juzPlaylist,
+      playbackRate,
+      syncPreloadWindow,
+      volume,
+    ]
+  );
+
+  /**
+   * 2. Smart Cross-Trigger (~120ms before the end of the current MP3 file):
+   * High-frequency monitor (every 35ms) that checks if the current verse is within
+   * 120ms of completion so it swaps to the preloaded standby audio slot BEFORE
+   * trailing MP3 silence padding occurs.
+   */
+  useEffect(() => {
+    if (!isPlaying) return;
+
+    const timer = window.setInterval(() => {
+      const player = getActiveAudio();
+      if (!player || player.paused) return;
+
+      if (usingSurahFallback || audioMode === "continuous-surah") {
+        setStreamCurrentTime(player.currentTime || 0);
+        setStreamDuration(Number.isFinite(player.duration) ? player.duration : 0);
+        return;
+      }
+
+      if (!smartCrossTriggerEnabled) return;
+
+      const curIdx = playingIndexRef.current;
+      if (
+        curIdx < juzPlaylist.length - 1 &&
+        crossTriggeredIndexRef.current !== curIdx &&
+        shouldSmartCrossTrigger(
+          player.currentTime,
+          player.duration,
+          SMART_CROSS_TRIGGER_LEAD_SECONDS
+        )
+      ) {
+        const standby = getStandbyAudio();
+        // Trigger instant swap if standby slot has buffered data
+        if (standby && standby.readyState >= 3) {
+          crossTriggeredIndexRef.current = curIdx;
+          playVerseAtIndex(curIdx + 1, { usePreloadedStandby: true });
+        }
+      }
+    }, 35);
+
+    return () => window.clearInterval(timer);
+  }, [
+    isPlaying,
+    audioMode,
+    usingSurahFallback,
+    smartCrossTriggerEnabled,
+    juzPlaylist.length,
+    getActiveAudio,
+    getStandbyAudio,
+    playVerseAtIndex,
+  ]);
+
+  const togglePlayPause = async () => {
+    const player = getActiveAudio();
+    if (!player) return;
+    if (isPlaying) {
+      stopAllAudio();
+      setIsPlaying(false);
+    } else {
+      // If paused mid-stream in continuous mode, resume from current position
+      if (
+        (audioMode === "continuous-surah" || usingSurahFallback) &&
+        player.src &&
+        player.currentTime > 0
+      ) {
+        try {
+          await player.play();
           setIsPlaying(true);
           return;
         } catch {
-          // fall through
+          // fallback to fresh start
         }
       }
-      setIsPlaying(false);
-      setAudioError(
-        "تعذر تشغيل التلاوة الصوتية حاليًا (تأكد من الاتصال بالإنترنت). النص القرآني للجزء متاح بالكامل."
-      );
-    }
-  };
-
-  const togglePlayPause = async () => {
-    if (!audioRef.current) return;
-    if (isPlaying) {
-      audioRef.current.pause();
-      setIsPlaying(false);
-    } else {
       await playVerseAtIndex(playingIndex ?? selectedIndex ?? 0);
     }
   };
 
-  const handleAudioEnded = () => {
-    if (usingSurahFallback) {
-      // Advance to the first verse of the next Surah segment in this Juz, if any
-      const currentSurahId = playingRef?.surahId;
+  const handleSlotEnded = (slot: "A" | "B") => {
+    // Ignore ended events from the inactive slot
+    if (activeSlotRef.current !== slot) return;
+
+    const curIdx = playingIndexRef.current;
+    // If Smart Cross-Trigger already transitioned from curIdx, ignore duplicate onEnded
+    if (crossTriggeredIndexRef.current === curIdx) return;
+
+    if (usingSurahFallback || audioMode === "continuous-surah") {
+      const currentSurahId = juzPlaylist[curIdx]?.surahId;
       const nextSurahVerseIdx = juzPlaylist.findIndex(
-        (item, idx) => idx > playingIndex && item.surahId !== currentSurahId
+        (item, idx) => idx > curIdx && item.surahId !== currentSurahId
       );
       if (nextSurahVerseIdx !== -1) {
-        playVerseAtIndex(nextSurahVerseIdx);
+        playVerseAtIndex(nextSurahVerseIdx, { usePreloadedStandby: true });
       } else {
         setIsPlaying(false);
       }
       return;
     }
 
-    if (playingIndex < juzPlaylist.length - 1) {
-      playVerseAtIndex(playingIndex + 1);
+    if (curIdx < juzPlaylist.length - 1) {
+      playVerseAtIndex(curIdx + 1, { usePreloadedStandby: true });
     } else {
       setIsPlaying(false);
     }
   };
 
-  const handleAudioElementError = async () => {
-    if (!usingSurahFallback && playingRef && audioRef.current) {
+  const handleSlotError = async (slot: "A" | "B") => {
+    if (activeSlotRef.current !== slot) return;
+    const player = getActiveAudio();
+    if (!usingSurahFallback && playingRef && player) {
       const fallbackUrl = getSurahFallbackAudioUrl(
         playingRef.surahId,
         currentReciter.surahAudioServerUrl
@@ -245,8 +619,8 @@ export function JuzReaderClient({
       if (fallbackUrl) {
         try {
           setUsingSurahFallback(true);
-          audioRef.current.src = fallbackUrl;
-          await audioRef.current.play();
+          player.src = fallbackUrl;
+          await player.play();
           setIsPlaying(true);
           return;
         } catch {
@@ -258,6 +632,16 @@ export function JuzReaderClient({
     setAudioError(
       "تعذر تحميل الملف الصوتي للآية. يرجى التحقق من اتصال الإنترنت."
     );
+  };
+
+  const handleSwitchAudioMode = (newMode: QuranAudioMode) => {
+    updatePrefs({ audioMode: newMode });
+    if (isPlaying) {
+      playVerseAtIndex(playingIndex, { modeOverride: newMode });
+    } else {
+      setUsingSurahFallback(newMode === "continuous-surah");
+      syncPreloadWindow(playingIndex, currentReciter, newMode);
+    }
   };
 
   const findPlaylistIndex = (surahId: number, ayahNum: number): number => {
@@ -391,12 +775,18 @@ export function JuzReaderClient({
 
   return (
     <div className="space-y-6">
-      {/* Hidden HTML5 Audio Element */}
+      {/* Dual-Audio Gapless Preloader Elements (Slot A & Slot B) */}
       <audio
-        ref={audioRef}
-        onEnded={handleAudioEnded}
-        onError={handleAudioElementError}
-        preload="none"
+        ref={audioSlotARef}
+        onEnded={() => handleSlotEnded("A")}
+        onError={() => handleSlotError("A")}
+        preload="auto"
+      />
+      <audio
+        ref={audioSlotBRef}
+        onEnded={() => handleSlotEnded("B")}
+        onError={() => handleSlotError("B")}
+        preload="auto"
       />
 
       {/* Toast Notification */}
@@ -499,7 +889,9 @@ export function JuzReaderClient({
                   onClick={() => {
                     updatePrefs({ reciterId: rec.id });
                     if (isPlaying) {
-                      playVerseAtIndex(playingIndex, rec);
+                      playVerseAtIndex(playingIndex, { reciterOverride: rec });
+                    } else {
+                      syncPreloadWindow(playingIndex, rec);
                     }
                   }}
                   className={cn(
@@ -509,12 +901,139 @@ export function JuzReaderClient({
                       : "border-border bg-card text-foreground hover:border-primary/40 hover:text-primary"
                   )}
                 >
-                  <Volume2 className={cn("h-3 w-3 shrink-0", active ? "text-gold" : "text-primary")} />
+                  <Volume2
+                    className={cn(
+                      "h-3 w-3 shrink-0",
+                      active ? "text-gold" : "text-primary"
+                    )}
+                  />
                   <span>{rec.nameAr}</span>
                 </button>
               );
             })}
           </div>
+        </div>
+
+        {/* Two Listening Modes Selector + Gapless Preloader & Smart Cross-Trigger Status */}
+        <div className="mb-4 rounded-2xl border border-primary/20 bg-primary/5 p-3.5 sm:p-4">
+          <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-extrabold text-foreground sm:text-sm">
+                  نظام التلاوة الصوتية لمنع التقطيع:
+                </span>
+                {audioMode === "gapless-ayah" ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600/15 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
+                    <Zap className="h-3 w-3" />
+                    <span>
+                      التحميل المسبق المزدوج نشط (جاهز في الذاكرة:{" "}
+                      {toArabicDigits(preloadedReadyCount)} من{" "}
+                      {toArabicDigits(PRELOAD_AHEAD_COUNT)} آية • readyState=4)
+                    </span>
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-gold/20 px-2.5 py-0.5 text-[11px] font-bold text-amber-900 dark:text-gold">
+                    <Radio className="h-3 w-3" />
+                    <span>بث إذاعي متصل ١٠٠٪ للسورة كاملة دون أي فواصل</span>
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {audioMode === "gapless-ayah"
+                  ? "يقوم المشغّل بتحميل الآيتين القادمتين في الذاكرة مسبقًا والانتقال الذكي قبل آخر 120ms لتلافي صمت نهاية ملف الـ MP3."
+                  : `يتم تشغيل التسجيل الكامل المتصل لسورة ${playingRef?.surahName || juz.startSurahName} من خادم mp3quran.net كملف واحد متصل تمامًا.`}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex rounded-xl border border-border bg-card p-1 shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => handleSwitchAudioMode("gapless-ayah")}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition",
+                    audioMode === "gapless-ayah"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span>وضع الآية بآية السلس (Gapless)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSwitchAudioMode("continuous-surah")}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition",
+                    audioMode === "continuous-surah"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Radio className="h-3.5 w-3.5" />
+                  <span>وضع التلاوة الإذاعية المتصلة</span>
+                </button>
+              </div>
+
+              {audioMode === "gapless-ayah" && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    updatePrefs({
+                      smartCrossTriggerEnabled: !smartCrossTriggerEnabled,
+                    })
+                  }
+                  title="الانتقال للآية المحمّلة مسبقًا قبل آخر 120ms لتفادي صمت نهاية الملف"
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[11px] font-bold transition",
+                    smartCrossTriggerEnabled
+                      ? "border-emerald-600/40 bg-emerald-600/10 text-emerald-700 dark:text-emerald-300"
+                      : "border-border bg-card text-muted-foreground"
+                  )}
+                >
+                  <Zap className="h-3 w-3" />
+                  <span>
+                    الانتقال الذكي (120ms):{" "}
+                    {smartCrossTriggerEnabled ? "مفعّل" : "متوقف"}
+                  </span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Continuous Stream Timeline Scrubber (when in Continuous Stream mode) */}
+          {(audioMode === "continuous-surah" || usingSurahFallback) && (
+            <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card px-3.5 py-2.5">
+              <span className="text-xs font-extrabold text-primary">
+                البث المتصل: سورة {playingRef?.surahName}
+              </span>
+              <div className="flex min-w-[180px] flex-1 items-center gap-2" dir="ltr">
+                <span className="w-11 text-right font-mono text-[11px] font-semibold text-muted-foreground">
+                  {formatAudioTime(streamCurrentTime)}
+                </span>
+                <input
+                  type="range"
+                  min={0}
+                  max={streamDuration > 0 ? streamDuration : 100}
+                  step={1}
+                  value={streamCurrentTime}
+                  onChange={(e) => {
+                    const nextSec = Number(e.target.value);
+                    setStreamCurrentTime(nextSec);
+                    const player = getActiveAudio();
+                    if (player && Number.isFinite(player.duration)) {
+                      player.currentTime = nextSec;
+                    }
+                  }}
+                  aria-label="شريط تقدم التلاوة المتصلة"
+                  className="h-1.5 flex-1 cursor-pointer accent-primary"
+                />
+                <span className="w-11 font-mono text-[11px] font-semibold text-muted-foreground">
+                  {formatAudioTime(streamDuration)}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Reader & Audio Controls Toolbar */}
@@ -595,7 +1114,9 @@ export function JuzReaderClient({
                 updatePrefs({ reciterId: newRecId });
                 const found = QURAN_RECITERS.find((r) => r.id === newRecId);
                 if (isPlaying && found) {
-                  playVerseAtIndex(playingIndex, found);
+                  playVerseAtIndex(playingIndex, { reciterOverride: found });
+                } else if (found) {
+                  syncPreloadWindow(playingIndex, found);
                 }
               }}
               className="w-full rounded-xl border border-border bg-card px-3 py-2 text-xs font-bold text-foreground sm:w-auto sm:py-1.5"
@@ -632,7 +1153,8 @@ export function JuzReaderClient({
                   type="button"
                   onClick={() =>
                     playVerseAtIndex(
-                      Math.min(juzPlaylist.length - 1, playingIndex + 1)
+                      Math.min(juzPlaylist.length - 1, playingIndex + 1),
+                      { usePreloadedStandby: true }
                     )
                   }
                   disabled={playingIndex >= juzPlaylist.length - 1}
@@ -716,7 +1238,7 @@ export function JuzReaderClient({
               onClick={() => {
                 if (isPlaying && playingIndex === selectedRef.index) {
                   setIsPlaying(false);
-                  audioRef.current?.pause();
+                  stopAllAudio();
                 } else {
                   playVerseAtIndex(selectedRef.index);
                 }
@@ -846,7 +1368,7 @@ export function JuzReaderClient({
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={() =>

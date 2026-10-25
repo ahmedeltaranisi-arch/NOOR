@@ -9,6 +9,7 @@ import {
   NotificationToneId,
   PrayerCalculationSettings,
   PrayerNotificationSettings,
+  QuranAudioMode,
   QuranBookmark,
   TasbeehState,
   UserLocation,
@@ -638,16 +639,24 @@ export interface QuranReaderPrefs {
   fontSizeLevel: 1 | 2 | 3 | 4;
   reciterId: string;
   viewMode: "mushaf" | "cards";
+  audioMode?: QuranAudioMode;
+  smartCrossTriggerEnabled?: boolean;
 }
 
 export const DEFAULT_QURAN_PREFS: QuranReaderPrefs = {
   fontSizeLevel: 2,
   reciterId: "husary",
   viewMode: "mushaf",
+  audioMode: "gapless-ayah",
+  smartCrossTriggerEnabled: true,
 };
 
 export function getQuranPrefs(): QuranReaderPrefs {
-  return readStorage<QuranReaderPrefs>(STORAGE_KEYS.QURAN_PREFS, DEFAULT_QURAN_PREFS);
+  const saved = readStorage<QuranReaderPrefs>(STORAGE_KEYS.QURAN_PREFS, DEFAULT_QURAN_PREFS);
+  return {
+    ...DEFAULT_QURAN_PREFS,
+    ...saved,
+  };
 }
 
 export function saveQuranPrefs(prefs: QuranReaderPrefs): void {
