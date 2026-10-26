@@ -101,6 +101,12 @@ export function HadithExplorerClient({
     setSavedHadiths(getSavedHadiths());
   }, []);
 
+  useEffect(() => {
+    setSelectedBook(initialPageData.bookSlug);
+    setSelectedChapter(initialPageData.selectedChapterId);
+    setPageData(initialPageData);
+  }, [initialPageData]);
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
@@ -182,6 +188,14 @@ export function HadithExplorerClient({
       q: searchQuery,
       page: 1,
     });
+    if (typeof window !== "undefined") {
+      setTimeout(() => {
+        const el = document.getElementById("hadith-results-top");
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 50);
+    }
   };
 
   const handleSelectChapter = (chapId: number | null) => {
