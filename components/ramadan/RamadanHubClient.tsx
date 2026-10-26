@@ -202,9 +202,40 @@ export function RamadanHubClient({
       governorateId: gov.id,
       governorateNameAr: gov.nameAr,
       cityId: city.id,
+      villageId: undefined,
       cityNameAr: city.nameAr,
+      villageNameAr: undefined,
       latitude: city.latitude,
       longitude: city.longitude,
+      isCustomGps: false,
+    };
+    setLocation(nextLoc);
+    saveLocation(nextLoc);
+  };
+
+  const handleVillageChange = (villageId: string) => {
+    const gov = getGovernorateById(location.governorateId);
+    if (!gov) return;
+    const city = gov.cities.find((c) => c.id === location.cityId) || gov.cities[0];
+    if (!city) return;
+    if (!villageId || villageId === "all") {
+      handleCityChange(city.id);
+      return;
+    }
+    const village = city.villages?.find((v) => v.id === villageId);
+    if (!village) return;
+    const nextLoc: UserLocation = {
+      governorateId: gov.id,
+      governorateNameAr: gov.nameAr,
+      cityId: city.id,
+      villageId: village.id,
+      cityNameAr:
+        village.nameAr === city.nameAr
+          ? city.nameAr
+          : `${city.nameAr} — ${village.nameAr}`,
+      villageNameAr: village.nameAr,
+      latitude: village.latitude,
+      longitude: village.longitude,
       isCustomGps: false,
     };
     setLocation(nextLoc);
@@ -268,6 +299,9 @@ export function RamadanHubClient({
 
   const currentGov =
     getGovernorateById(location.governorateId) || EGYPT_GOVERNORATES[0];
+  const currentCity =
+    currentGov.cities.find((c) => c.id === location.cityId) ||
+    currentGov.cities[0];
 
   const khatmahPercent = Math.round(
     (progress.completedJuzDays.length / 30) * 100
@@ -489,8 +523,8 @@ export function RamadanHubClient({
                 </p>
               </div>
 
-              {/* Governorate & City Dropdowns */}
-              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              {/* Governorate, Markaz & Village Dropdowns */}
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
                 <div>
                   <label className="mb-1 block text-[11px] font-bold text-muted-foreground">
                     المحافظة (٢٧ محافظة):
@@ -511,7 +545,7 @@ export function RamadanHubClient({
 
                 <div>
                   <label className="mb-1 block text-[11px] font-bold text-muted-foreground">
-                    المدينة / المركز:
+                    المركز / المدينة ({toArabicDigits(currentGov.cities.length)}):
                   </label>
                   <select
                     aria-label="اختيار المدينة لإمساكية رمضان"
@@ -522,6 +556,27 @@ export function RamadanHubClient({
                     {currentGov.cities.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.nameAr}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-[11px] font-bold text-muted-foreground">
+                    القرية / المنطقة ({toArabicDigits(currentCity?.villages?.length || 0)}):
+                  </label>
+                  <select
+                    aria-label="اختيار القرية لإمساكية رمضان"
+                    value={location.villageId || "all"}
+                    onChange={(e) => handleVillageChange(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-extrabold text-foreground focus:border-primary focus:outline-none"
+                  >
+                    <option value="all">
+                      المركز الرئيسي ({currentCity?.nameAr})
+                    </option>
+                    {(currentCity?.villages || []).map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.nameAr}
                       </option>
                     ))}
                   </select>

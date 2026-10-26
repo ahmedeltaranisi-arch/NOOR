@@ -1,9 +1,18 @@
+export interface VillageLocation {
+  id: string;
+  nameAr: string;
+  nameEn: string;
+  latitude: number;
+  longitude: number;
+}
+
 export interface CityLocation {
   id: string;
   nameAr: string;
   nameEn: string;
   latitude: number;
   longitude: number;
+  villages?: VillageLocation[];
 }
 
 export interface Governorate {
@@ -20,8 +29,10 @@ export interface Governorate {
 export interface UserLocation {
   governorateId: string;
   cityId: string;
+  villageId?: string;
   governorateNameAr: string;
   cityNameAr: string;
+  villageNameAr?: string;
   latitude: number;
   longitude: number;
   isCustomGps?: boolean;
