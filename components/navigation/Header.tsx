@@ -13,6 +13,7 @@ import {
   Home,
   Library,
   MapPin,
+  Moon,
   Play,
   ScrollText,
   Settings,
@@ -44,6 +45,7 @@ import { cn } from "@/lib/utils";
 const NAV_ITEMS = [
   { href: "/", label: "الرئيسية", icon: Home },
   { href: "/prayer-times", label: "المواقيت", icon: Clock },
+  { href: "/ramadan", label: "رمضان", icon: Moon },
   { href: "/qibla", label: "القبلة", icon: Compass },
   { href: "/quran", label: "القرآن", icon: BookOpen },
   { href: "/tafsir", label: "التفسير", icon: Library },
@@ -183,7 +185,7 @@ export function Header() {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-xl px-2.5 text-xs font-bold transition-all xl:px-3 xl:text-[13px]",
+                    "inline-flex h-9 items-center gap-1 whitespace-nowrap rounded-xl px-2 text-[11px] font-bold transition-all xl:gap-1.5 xl:px-2.5 xl:text-xs",
                     isActive
                       ? "bg-primary text-primary-foreground shadow-sm"
                       : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground"

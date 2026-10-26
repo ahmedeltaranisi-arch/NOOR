@@ -31,6 +31,12 @@ const MAIN_MOBILE_TABS = [
 
 const MORE_DRAWER_LINKS = [
   {
+    href: "/ramadan",
+    label: "شهر رمضان المبارك",
+    desc: "إمساكية الـ ٢٧ محافظة، مواعيد السحور والإفطار، ختمة الـ ٣٠ جزءًا، وأدعية رمضان وليلة القدر",
+    icon: Moon,
+  },
+  {
     href: "/tafsir",
     label: "تفسير القرآن الكريم",
     desc: "موسوعة التفسير الكاملة (٧ تفاسير معتمدة: الميسر، السعدي، ابن كثير، القرطبي، البغوي، المعاني، والإعراب)",
@@ -85,6 +91,7 @@ export function MobileBottomNav() {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const isMoreActive = [
+    "/ramadan",
     "/tafsir",
     "/hadith",
     "/qibla",
