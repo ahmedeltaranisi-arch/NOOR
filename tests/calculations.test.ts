@@ -128,6 +128,46 @@ describe("1. المحافظات المصرية الـ 27 وتحديد الموق
 
     const damiettaMarkaz = getVillageByIds("damietta", "damietta-city");
     expect(damiettaMarkaz?.city.villages?.length).toBeGreaterThanOrEqual(18);
+
+    // التحقق من التدقيق الإملائي والمسافات بين الكلمات في قرى مركز أولاد صقر ومركز كفر صقر بمحافظة الشرقية وجميع المحافظات
+    const sharqiaGov = EGYPT_GOVERNORATES.find((g) => g.id === "sharqia");
+    expect(sharqiaGov).toBeDefined();
+
+    const awladSaqr = sharqiaGov?.cities.find((c) => c.id === "eg1319");
+    expect(awladSaqr?.nameAr).toBe("مركز أولاد صقر");
+    const awladSaqrVillageNames = (awladSaqr?.villages || []).map((v) => v.nameAr);
+    expect(awladSaqrVillageNames).toContain("قصاصين الأزهار");
+    expect(awladSaqrVillageNames).toContain("منشأة ناصر");
+    expect(awladSaqrVillageNames).toContain("منشأة السادات");
+    expect(awladSaqrVillageNames).toContain("منشأة الأمير");
+    expect(awladSaqrVillageNames).toContain("زور أبو الليل");
+    expect(awladSaqrVillageNames).toContain("تل راك");
+    expect(awladSaqrVillageNames).toContain("جزيرة مطاوع");
+    expect(awladSaqrVillageNames).toContain("كفر الشوافين");
+    expect(awladSaqrVillageNames).toContain("كفر الفرايحة");
+    expect(awladSaqrVillageNames).not.toContain("قصاصينالازهار");
+    expect(awladSaqrVillageNames).not.toContain("قصاصينالأزهار");
+    expect(awladSaqrVillageNames).not.toContain("منشأةناصر");
+    expect(awladSaqrVillageNames).not.toContain("منشاةالسادات");
+    expect(awladSaqrVillageNames).not.toContain("منشأةالسادات");
+
+    const kafrSaqr = sharqiaGov?.cities.find((c) => c.id === "eg1313");
+    expect(kafrSaqr?.nameAr).toBe("مركز كفر صقر");
+    const kafrSaqrVillageNames = (kafrSaqr?.villages || []).map((v) => v.nameAr);
+    expect(kafrSaqrVillageNames).toContain("منشأة بن العاصي");
+    expect(kafrSaqrVillageNames).toContain("منشية عبد اللطيف واكد");
+    expect(kafrSaqrVillageNames).toContain("كفر عبد الشهيد شنودة");
+    expect(kafrSaqrVillageNames).toContain("شيط الهوى");
+
+    // التأكد من عدم وجود أي كلمة ملتصقة بـ "ال" بعد التاء المربوطة في أي قرية على مستوى الجمهورية
+    for (const gov of EGYPT_GOVERNORATES) {
+      for (const city of gov.cities) {
+        expect(city.nameAr).not.toMatch(/ة[أإآء-ي]/);
+        for (const v of city.villages || []) {
+          expect(v.nameAr).not.toMatch(/ة[أإآء-ي]/);
+        }
+      }
+    }
   });
 
   it("يحدد أقرب مدينة مصرية بدقة من الإحداثيات الجغرافية (دمياط والقاهرة)", () => {
