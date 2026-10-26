@@ -11,6 +11,7 @@ import {
   PrayerNotificationSettings,
   QuranAudioMode,
   QuranBookmark,
+  SavedHadithBookmark,
   TasbeehState,
   UserLocation,
 } from "@/types";
@@ -26,6 +27,7 @@ export const STORAGE_KEYS = {
   DAILY_WIRD: "noor_daily_wird",
   ADHKAR_PROGRESS: "noor_adhkar_progress",
   TASBEEH_STATE: "noor_tasbeeh_state",
+  SAVED_HADITHS: "noor_saved_hadiths",
 } as const;
 
 export const STORAGE_CHANGE_EVENT = "noor-storage-change";
@@ -756,6 +758,39 @@ export function getTasbeehState(): TasbeehState {
 
 export function saveTasbeehState(state: TasbeehState): void {
   writeStorage(STORAGE_KEYS.TASBEEH_STATE, state);
+}
+
+// 6b. Saved Prophetic Hadiths
+export function getSavedHadiths(): SavedHadithBookmark[] {
+  return readStorage<SavedHadithBookmark[]>(STORAGE_KEYS.SAVED_HADITHS, []);
+}
+
+export function toggleSavedHadith(
+  item: Omit<SavedHadithBookmark, "key" | "createdAt">
+): { added: boolean; bookmarks: SavedHadithBookmark[] } {
+  const existing = getSavedHadiths();
+  const key = `${item.bookSlug}:${item.hadithId}`;
+  const foundIdx = existing.findIndex((b) => b.key === key);
+
+  let updated: SavedHadithBookmark[];
+  let added: boolean;
+  if (foundIdx >= 0) {
+    updated = existing.filter((b) => b.key !== key);
+    added = false;
+  } else {
+    updated = [
+      {
+        ...item,
+        key,
+        createdAt: new Date().toISOString(),
+      },
+      ...existing,
+    ];
+    added = true;
+  }
+
+  writeStorage(STORAGE_KEYS.SAVED_HADITHS, updated);
+  return { added, bookmarks: updated };
 }
 
 // 7. Privacy & Data Management

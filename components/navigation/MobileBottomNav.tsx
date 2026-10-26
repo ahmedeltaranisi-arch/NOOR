@@ -12,6 +12,7 @@ import {
   Home,
   LayoutGrid,
   Moon,
+  ScrollText,
   Settings,
   Sparkles,
   Sun,
@@ -28,6 +29,12 @@ const MAIN_MOBILE_TABS = [
 ];
 
 const MORE_DRAWER_LINKS = [
+  {
+    href: "/hadith",
+    label: "الأحاديث النبوية الشريفة",
+    desc: "موسوعة شاملة تضم ٥٠,٧٥٩ حديثًا من ١٧ كتابًا من أمهات كتب السنة",
+    icon: ScrollText,
+  },
   {
     href: "/qibla",
     label: "اتجاه القبلة والمساجد",
@@ -70,8 +77,8 @@ export function MobileBottomNav() {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const isMoreActive = ["/qibla", "/tasbeeh", "/calendar", "/settings"].some((p) =>
-    pathname.startsWith(p)
+  const isMoreActive = ["/hadith", "/qibla", "/tasbeeh", "/calendar", "/settings"].some(
+    (p) => pathname.startsWith(p)
   );
 
   return (

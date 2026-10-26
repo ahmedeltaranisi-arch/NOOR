@@ -159,9 +159,17 @@ export function DailyInspirationSection({
           </div>
 
           <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3.5">
-            <span className="text-xs font-semibold text-muted-foreground">
-              المصدر: {content.hadith.sourceAr}
-            </span>
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-xs font-semibold text-muted-foreground">
+                المصدر: {content.hadith.sourceAr}
+              </span>
+              <Link
+                href="/hadith"
+                className="text-xs font-bold text-primary hover:underline"
+              >
+                موسوعة الأحاديث الكاملة (٥٠,٧٥٩ حديث) ←
+              </Link>
+            </div>
             <button
               type="button"
               onClick={() =>

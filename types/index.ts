@@ -357,3 +357,78 @@ export interface DailyInspirationContent {
     occasionAr: string;
   };
 }
+
+export type HadithBookSlug =
+  | "bukhari"
+  | "muslim"
+  | "abudawud"
+  | "tirmidhi"
+  | "nasai"
+  | "ibnmajah"
+  | "malik"
+  | "ahmed"
+  | "darimi"
+  | "riyad_assalihin"
+  | "bulugh_almaram"
+  | "aladab_almufrad"
+  | "mishkat_almasabih"
+  | "shamail_muhammadiyah"
+  | "nawawi40"
+  | "qudsi40"
+  | "shahwaliullah40";
+
+export type HadithBookCategory =
+  | "الكتب التسعة (الأمهات)"
+  | "جوامع السنة والأخلاق والأحكام"
+  | "متون الأربعينات الجامعة";
+
+export interface HadithBookMeta {
+  slug: HadithBookSlug;
+  titleAr: string;
+  shortTitleAr: string;
+  authorAr: string;
+  categoryAr: HadithBookCategory;
+  descriptionAr: string;
+  gradeBadgeAr: string;
+  totalHadiths: number;
+  totalChapters: number;
+}
+
+export interface HadithChapterItem {
+  id: number;
+  title: string;
+  count: number;
+}
+
+export interface HadithItem {
+  id: number; // idInBook
+  cid: number; // chapterId
+  text: string;
+  chapterTitle?: string;
+  bookSlug?: HadithBookSlug;
+  bookTitleAr?: string;
+  gradeBadgeAr?: string;
+}
+
+export interface HadithPageResult {
+  bookSlug: HadithBookSlug | "all";
+  bookMeta?: HadithBookMeta;
+  chapters: HadithChapterItem[];
+  selectedChapterId: number | null;
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+  items: HadithItem[];
+}
+
+export interface SavedHadithBookmark {
+  key: string; // `${bookSlug}:${id}`
+  bookSlug: HadithBookSlug;
+  bookTitleAr: string;
+  hadithId: number;
+  chapterTitle: string;
+  text: string;
+  createdAt: string;
+}
+

@@ -13,6 +13,7 @@ import {
   Home,
   MapPin,
   Play,
+  ScrollText,
   Settings,
   Sparkles,
   Square,
@@ -41,9 +42,10 @@ import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { href: "/", label: "الرئيسية", icon: Home },
-  { href: "/prayer-times", label: "مواقيت الصلاة", icon: Clock },
+  { href: "/prayer-times", label: "المواقيت", icon: Clock },
   { href: "/qibla", label: "القبلة", icon: Compass },
-  { href: "/quran", label: "القرآن الكريم", icon: BookOpen },
+  { href: "/quran", label: "القرآن", icon: BookOpen },
+  { href: "/hadith", label: "الأحاديث", icon: ScrollText },
   { href: "/adhkar", label: "الأذكار", icon: Heart },
   { href: "/tasbeeh", label: "المسبحة", icon: Sparkles },
   { href: "/calendar", label: "التقويم", icon: Calendar },
