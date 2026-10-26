@@ -229,7 +229,7 @@ export default function HomePage() {
                     {toArabicDigits(book.totalHadiths)} حديث
                   </span>
                 </div>
-                <h3 className="mt-2.5 font-serif text-base font-bold text-foreground group-hover:text-primary">
+                <h3 className="mt-2.5 font-sans text-base font-extrabold text-foreground group-hover:text-primary">
                   {book.shortTitleAr}
                 </h3>
                 <p className="mt-0.5 truncate text-[11px] font-medium text-muted-foreground">

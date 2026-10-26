@@ -381,7 +381,7 @@ export function HadithExplorerClient({
               <span>{toArabicDigits(TOTAL_HADITHS_COUNT)} حديثًا نبويًا</span>
             </div>
 
-            <h1 className="font-serif text-2xl font-bold leading-relaxed text-white sm:text-4xl">
+            <h1 className="font-sans text-2xl font-extrabold leading-relaxed text-white sm:text-4xl">
               الأحاديث النبوية الشريفة عن رسول الله ﷺ
             </h1>
 
@@ -891,7 +891,7 @@ export function HadithExplorerClient({
                           </span>
                         </div>
 
-                        <h3 className="font-serif text-xl font-bold text-foreground">
+                        <h3 className="font-sans text-xl font-extrabold text-foreground">
                           {book.titleAr}
                         </h3>
 
