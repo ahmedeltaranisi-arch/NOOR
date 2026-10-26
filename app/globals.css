@@ -2,6 +2,38 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Restrict Amiri & Amiri Quran @font-face strictly to Arabic letters & Tashkeel
+ * (excluding U+0028 '(' and U+0029 ')') so ASCII parentheses always fall back
+ * to Cairo (--font-cairo) and never suffer from Amiri's double-mirrored glyphs.
+ */
+@font-face {
+  font-family: "AmiriArabicOnly";
+  src: url("/fonts/amiri-arabic-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+
+@font-face {
+  font-family: "AmiriArabicOnly";
+  src: url("/fonts/amiri-arabic-700-normal.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+
+@font-face {
+  font-family: "AmiriQuranArabicOnly";
+  src: url("/fonts/amiri-quran-arabic-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+
 @layer base {
   :root {
     /* Day Mode: Warm Ivory/Alabaster & Islamic Emerald & Muted Gold */
@@ -123,12 +155,12 @@
 
 /* Quranic Text Styling with Tashkeel & Waqf respect */
 .font-quran {
-  font-family: var(--font-amiri-quran), var(--font-amiri), serif;
+  font-family: "AmiriQuranArabicOnly", "AmiriArabicOnly", var(--font-cairo), serif;
   line-height: 1.95 !important;
 }
 
 .quran-verse-text {
-  font-family: var(--font-amiri-quran), var(--font-amiri), serif;
+  font-family: "AmiriQuranArabicOnly", "AmiriArabicOnly", var(--font-cairo), serif;
   line-height: 2.35;
   word-spacing: 0.06em;
   letter-spacing: 0;

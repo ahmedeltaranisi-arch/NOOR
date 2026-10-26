@@ -333,7 +333,7 @@ export function HadithBookReaderClient({
             <span>{bookMeta.gradeBadgeAr}</span>
           </div>
 
-          <h1 className="font-serif py-1 text-2xl font-bold leading-[1.7] text-white sm:text-4xl sm:leading-[1.7]">
+          <h1 className="font-sans py-1 text-2xl font-extrabold leading-[1.6] text-white sm:text-4xl sm:leading-[1.6]">
             {bookMeta.titleAr}
           </h1>
 
@@ -571,7 +571,7 @@ export function HadithBookReaderClient({
                     ? `الباب رقم ${toArabicDigits(activeChapterObj.id)}`
                     : "عرض كامل الكتاب"}
                 </span>
-                <h2 className="font-serif text-lg font-bold text-foreground sm:text-xl">
+                <h2 className="font-sans text-lg font-extrabold text-foreground sm:text-xl">
                   {activeChapterObj
                     ? activeChapterObj.title
                     : `جميع أحاديث ${bookMeta.shortTitleAr}`}

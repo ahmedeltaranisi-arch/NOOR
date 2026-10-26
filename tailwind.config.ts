@@ -11,8 +11,13 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans: ["var(--font-cairo)", "system-ui", "sans-serif"],
-        quran: ["var(--font-amiri-quran)", "var(--font-amiri)", "serif"],
-        serif: ["var(--font-amiri)", "serif"],
+        quran: [
+          "AmiriQuranArabicOnly",
+          "AmiriArabicOnly",
+          "var(--font-cairo)",
+          "serif",
+        ],
+        serif: ["AmiriArabicOnly", "var(--font-cairo)", "serif"],
       },
       colors: {
         background: "hsl(var(--background))",

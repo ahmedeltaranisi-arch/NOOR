@@ -22,21 +22,6 @@ const cairoFont = localFont({
   display: "swap",
 });
 
-const amiriFont = localFont({
-  src: [
-    { path: "./fonts/amiri-arabic-400-normal.woff2", weight: "400", style: "normal" },
-    { path: "./fonts/amiri-arabic-700-normal.woff2", weight: "700", style: "normal" },
-  ],
-  variable: "--font-amiri",
-  display: "swap",
-});
-
-const amiriQuranFont = localFont({
-  src: [{ path: "./fonts/amiri-quran-arabic-400-normal.woff2", weight: "400", style: "normal" }],
-  variable: "--font-amiri-quran",
-  display: "swap",
-});
-
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
   title: {
@@ -105,7 +90,7 @@ export default function RootLayout({
       lang="ar"
       dir="rtl"
       suppressHydrationWarning
-      className={`${cairoFont.variable} ${amiriFont.variable} ${amiriQuranFont.variable}`}
+      className={cairoFont.variable}
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
