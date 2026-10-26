@@ -35,6 +35,14 @@ import {
   START_SILENCE_SKIP_SECONDS,
 } from "@/lib/quran/audio";
 import { ADHKAR_CATEGORIES, ADHKAR_DATA } from "@/data/adhkar";
+import {
+  HADITH_BOOKS_META,
+  loadHadithBookFile,
+  queryHadiths,
+  TOTAL_HADITH_BOOKS_COUNT,
+  TOTAL_HADITH_CHAPTERS_COUNT,
+  TOTAL_HADITHS_COUNT,
+} from "@/lib/hadith";
 import { ADHAN_VOICES_META } from "@/lib/storage/local-storage";
 import fs from "fs";
 import path from "path";
@@ -339,5 +347,35 @@ describe("4. التقويم الهجري والقرآن الكريم والأذ�
     }
 
     expect(formatAudioTime(125)).toBe("02:05");
+  });
+
+  it("يتضمن موسوعة الأحاديث النبوية الشريفة الكاملة (50,759 حديثًا في 17 كتابًا و607 أبواب)", () => {
+    expect(HADITH_BOOKS_META.length).toBe(17);
+    expect(TOTAL_HADITH_BOOKS_COUNT).toBe(17);
+
+    let sumHadiths = 0;
+    let sumChapters = 0;
+    for (const meta of HADITH_BOOKS_META) {
+      const bookData = loadHadithBookFile(meta.slug);
+      expect(bookData.hadiths.length).toBe(meta.totalHadiths);
+      expect(bookData.chapters.length).toBe(meta.totalChapters);
+      sumHadiths += bookData.hadiths.length;
+      sumChapters += bookData.chapters.length;
+    }
+
+    expect(sumHadiths).toBe(TOTAL_HADITHS_COUNT);
+    expect(sumHadiths).toBe(50759);
+    expect(sumChapters).toBe(TOTAL_HADITH_CHAPTERS_COUNT);
+    expect(sumChapters).toBe(607);
+
+    // Verify diacritics-insensitive Arabic Hadith search
+    const nawawiSearch = queryHadiths({
+      bookSlug: "nawawi40",
+      query: "انما الاعمال بالنيات",
+      page: 1,
+      pageSize: 10,
+    });
+    expect(nawawiSearch.totalItems).toBeGreaterThanOrEqual(1);
+    expect(nawawiSearch.items[0].id).toBe(1);
   });
 });
