@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { HadithExplorerClient } from "@/components/hadith/HadithExplorerClient";
+import { HadithBookReaderClient } from "@/components/hadith/HadithBookReaderClient";
 import {
   getHadithBookMeta,
   HADITH_BOOKS_META,
@@ -40,6 +40,13 @@ export default async function HadithBookPage({
     notFound();
   }
 
+  const currentIdx = HADITH_BOOKS_META.findIndex((b) => b.slug === meta.slug);
+  const prevBook = currentIdx > 0 ? HADITH_BOOKS_META[currentIdx - 1] : undefined;
+  const nextBook =
+    currentIdx >= 0 && currentIdx < HADITH_BOOKS_META.length - 1
+      ? HADITH_BOOKS_META[currentIdx + 1]
+      : undefined;
+
   const initialPageData = queryHadiths({
     bookSlug: meta.slug,
     page: 1,
@@ -48,7 +55,12 @@ export default async function HadithBookPage({
 
   return (
     <div className="mx-auto max-w-7xl px-3.5 py-5 sm:px-6 sm:py-8 lg:px-8">
-      <HadithExplorerClient initialPageData={initialPageData} />
+      <HadithBookReaderClient
+        bookMeta={meta}
+        initialPageData={initialPageData}
+        prevBook={prevBook}
+        nextBook={nextBook}
+      />
     </div>
   );
 }
