@@ -3,6 +3,9 @@ import {
   EGYPT_GOVERNORATES,
   findNearestEgyptianCity,
   getCityByIds,
+  getVillageByIds,
+  TOTAL_EGYPT_MARKAZES_COUNT,
+  TOTAL_EGYPT_VILLAGES_COUNT,
 } from "@/data/egypt-governorates";
 import {
   calculateDailyPrayerSchedule,
@@ -110,8 +113,21 @@ describe("1. المحافظات المصرية الـ 27 وتحديد الموق
         expect(city.latitude).toBeLessThan(32.0);
         expect(city.longitude).toBeGreaterThan(24.5);
         expect(city.longitude).toBeLessThan(37.0);
+        expect(city.villages?.length || 0).toBeGreaterThanOrEqual(1);
+        for (const v of city.villages || []) {
+          expect(v.latitude).toBeGreaterThan(21.5);
+          expect(v.latitude).toBeLessThan(32.0);
+          expect(v.longitude).toBeGreaterThan(24.5);
+          expect(v.longitude).toBeLessThan(37.0);
+        }
       }
     }
+
+    expect(TOTAL_EGYPT_MARKAZES_COUNT).toBeGreaterThanOrEqual(450);
+    expect(TOTAL_EGYPT_VILLAGES_COUNT).toBeGreaterThanOrEqual(5800);
+
+    const damiettaMarkaz = getVillageByIds("damietta", "damietta-city");
+    expect(damiettaMarkaz?.city.villages?.length).toBeGreaterThanOrEqual(18);
   });
 
   it("يحدد أقرب مدينة مصرية بدقة من الإحداثيات الجغرافية (دمياط والقاهرة)", () => {

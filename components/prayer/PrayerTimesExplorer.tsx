@@ -116,13 +116,26 @@ export function PrayerTimesExplorer() {
     );
   }, [location.governorateId]);
 
+  const currentCity = useMemo(() => {
+    return (
+      currentGovernorate.cities.find((c) => c.id === location.cityId) ||
+      currentGovernorate.cities[0]
+    );
+  }, [currentGovernorate, location.cityId]);
+
   const filteredGovernorates = useMemo(() => {
     const q = normalizeArabicText(govSearch);
     if (!q) return EGYPT_GOVERNORATES;
     return EGYPT_GOVERNORATES.filter(
       (g) =>
         normalizeArabicText(g.nameAr).includes(q) ||
-        g.cities.some((c) => normalizeArabicText(c.nameAr).includes(q))
+        g.cities.some(
+          (c) =>
+            normalizeArabicText(c.nameAr).includes(q) ||
+            (c.villages || []).some((v) =>
+              normalizeArabicText(v.nameAr).includes(q)
+            )
+        )
     );
   }, [govSearch]);
 
@@ -188,10 +201,38 @@ export function PrayerTimesExplorer() {
     const newLoc: UserLocation = {
       governorateId: currentGovernorate.id,
       cityId: city.id,
+      villageId: undefined,
       governorateNameAr: currentGovernorate.nameAr,
       cityNameAr: city.nameAr,
+      villageNameAr: undefined,
       latitude: city.latitude,
       longitude: city.longitude,
+      isCustomGps: false,
+    };
+    saveLocation(newLoc);
+    setLocation(newLoc);
+  };
+
+  const handleSelectVillage = (villageId: string) => {
+    if (!currentCity) return;
+    if (!villageId || villageId === "all") {
+      handleSelectCity(currentCity.id);
+      return;
+    }
+    const village = currentCity.villages?.find((v) => v.id === villageId);
+    if (!village) return;
+    const newLoc: UserLocation = {
+      governorateId: currentGovernorate.id,
+      cityId: currentCity.id,
+      villageId: village.id,
+      governorateNameAr: currentGovernorate.nameAr,
+      cityNameAr:
+        village.nameAr === currentCity.nameAr
+          ? currentCity.nameAr
+          : `${currentCity.nameAr} — ${village.nameAr}`,
+      villageNameAr: village.nameAr,
+      latitude: village.latitude,
+      longitude: village.longitude,
       isCustomGps: false,
     };
     saveLocation(newLoc);
@@ -285,15 +326,15 @@ export function PrayerTimesExplorer() {
           </div>
         )}
 
-        {/* Governorate & City Selector Bar */}
-        <div className="mt-6 grid grid-cols-1 gap-4 rounded-2xl border border-border/80 bg-muted/30 p-4 lg:grid-cols-12">
+        {/* Governorate, Markaz & Village Selector Bar */}
+        <div className="mt-6 grid grid-cols-1 gap-3.5 rounded-2xl border border-border/80 bg-muted/30 p-4 sm:grid-cols-2 lg:grid-cols-12">
           {/* Quick Search */}
-          <div className="lg:col-span-4">
+          <div className="lg:col-span-3">
             <label
               htmlFor="gov-quick-search"
               className="mb-1.5 block text-xs font-bold text-foreground"
             >
-              بحث سريع في المحافظات والمدن
+              بحث في المحافظات والمراكز والقرى
             </label>
             <div className="relative">
               <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -302,51 +343,76 @@ export function PrayerTimesExplorer() {
                 type="text"
                 value={govSearch}
                 onChange={(e) => setGovSearch(e.target.value)}
-                placeholder="ابحث: القاهرة، دمياط، المنصورة، أسوان..."
-                className="w-full rounded-xl border border-border bg-card py-2 pl-3 pr-9 text-sm text-foreground focus:border-primary focus:outline-none"
+                placeholder="ابحث: دمياط، شربين، الشعراء..."
+                className="w-full rounded-xl border border-border bg-card py-2 pl-3 pr-9 text-xs font-bold text-foreground focus:border-primary focus:outline-none sm:text-sm"
               />
             </div>
           </div>
 
           {/* Governorate Select */}
-          <div className="lg:col-span-4">
+          <div className="lg:col-span-3">
             <label
               htmlFor="gov-select"
               className="mb-1.5 block text-xs font-bold text-foreground"
             >
-              المحافظة ({filteredGovernorates.length} من ٢٧ محافظة)
+              المحافظة ({toArabicDigits(filteredGovernorates.length)} من ٢٧)
             </label>
             <select
               id="gov-select"
               value={currentGovernorate.id}
               onChange={(e) => handleSelectGovernorate(e.target.value)}
-              className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground focus:border-primary focus:outline-none"
+              className="w-full rounded-xl border border-border bg-card px-3 py-2 text-xs font-bold text-foreground focus:border-primary focus:outline-none sm:text-sm"
             >
               {filteredGovernorates.map((gov) => (
                 <option key={gov.id} value={gov.id}>
-                  محافظة {gov.nameAr} ({gov.region})
+                  محافظة {gov.nameAr} ({toArabicDigits(gov.cities.length)} مركز)
                 </option>
               ))}
             </select>
           </div>
 
           {/* City / Markaz Select */}
-          <div className="lg:col-span-4">
+          <div className="lg:col-span-3">
             <label
               htmlFor="city-select"
               className="mb-1.5 block text-xs font-bold text-foreground"
             >
-              المدينة أو المركز داخل {currentGovernorate.nameAr}
+              المركز / المدينة ({toArabicDigits(currentGovernorate.cities.length)})
             </label>
             <select
               id="city-select"
               value={location.cityId}
               onChange={(e) => handleSelectCity(e.target.value)}
-              className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground focus:border-primary focus:outline-none"
+              className="w-full rounded-xl border border-border bg-card px-3 py-2 text-xs font-bold text-foreground focus:border-primary focus:outline-none sm:text-sm"
             >
               {currentGovernorate.cities.map((city) => (
                 <option key={city.id} value={city.id}>
-                  {city.nameAr} ({city.latitude.toFixed(2)}°N, {city.longitude.toFixed(2)}°E)
+                  {city.nameAr} ({toArabicDigits(city.villages?.length || 0)} قرية)
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Village Select */}
+          <div className="lg:col-span-3">
+            <label
+              htmlFor="village-select"
+              className="mb-1.5 block text-xs font-bold text-foreground"
+            >
+              القرية / المنطقة ({toArabicDigits(currentCity?.villages?.length || 0)})
+            </label>
+            <select
+              id="village-select"
+              value={location.villageId || "all"}
+              onChange={(e) => handleSelectVillage(e.target.value)}
+              className="w-full rounded-xl border border-border bg-card px-3 py-2 text-xs font-bold text-foreground focus:border-primary focus:outline-none sm:text-sm"
+            >
+              <option value="all">
+                المركز الرئيسي ({currentCity?.nameAr})
+              </option>
+              {(currentCity?.villages || []).map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.nameAr}
                 </option>
               ))}
             </select>
