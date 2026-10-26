@@ -52,6 +52,14 @@ import {
   TOTAL_QURAN_VERSES_COUNT,
   TOTAL_TAFSIR_BOOKS_COUNT,
 } from "@/lib/tafsir";
+import {
+  generateRamadanImsakiyah,
+  getRamadanStatusInfo,
+  getTodayFastingStatus,
+  RAMADAN_DAILY_DEEDS_META,
+  RAMADAN_ESSENTIAL_DUAS,
+  RAMADAN_THIRTY_DAILY_DUAS,
+} from "@/lib/ramadan";
 import { ADHAN_VOICES_META } from "@/lib/storage/local-storage";
 import fs from "fs";
 import path from "path";
@@ -419,5 +427,37 @@ describe("4. التقويم الهجري والقرآن الكريم والأذ�
     expect(kursiCompare.ayahNumber).toBe(255);
     expect(kursiCompare.comparisons.length).toBe(7);
     expect(kursiCompare.comparisons.every((c) => c.text.length > 0)).toBe(true);
+  });
+
+  it("يحسب إمساكية شهر رمضان المبارك (30 يومًا) ومواقيت السحور والإمساك والإفطار والأدعية بدقة", () => {
+    const testDate = new Date("2026-10-26T12:00:00+02:00");
+    const status = getRamadanStatusInfo(testDate);
+    expect(status.targetHijriYear).toBeGreaterThanOrEqual(1448);
+
+    const { days } = generateRamadanImsakiyah(
+      31.4175,
+      31.8144,
+      DEFAULT_CALCULATION_SETTINGS,
+      testDate
+    );
+    expect(days.length).toBe(30);
+    expect(days[0].ramadanDay).toBe(1);
+    expect(days[29].ramadanDay).toBe(30);
+    expect(days[26].isLaylatulQadr27).toBe(true);
+    expect(days[20].isOddLastTen).toBe(true);
+    expect(days[0].fastingTotalMinutes).toBeGreaterThan(600);
+
+    const fastingNow = getTodayFastingStatus(
+      31.4175,
+      31.8144,
+      DEFAULT_CALCULATION_SETTINGS,
+      testDate
+    );
+    expect(fastingNow.phase).toBe("fasting_day");
+    expect(fastingNow.remainingSeconds).toBeGreaterThan(0);
+
+    expect(RAMADAN_ESSENTIAL_DUAS.length).toBeGreaterThanOrEqual(6);
+    expect(RAMADAN_THIRTY_DAILY_DUAS.length).toBe(30);
+    expect(RAMADAN_DAILY_DEEDS_META.length).toBe(7);
   });
 });

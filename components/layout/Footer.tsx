@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import { ShieldCheck, BookOpen, Compass, Clock, Heart, Library, ScrollText } from "lucide-react";
+import { ShieldCheck, BookOpen, Compass, Clock, Heart, Library, Moon, ScrollText } from "lucide-react";
 
 export function Footer() {
   return (
@@ -41,6 +41,12 @@ export function Footer() {
                 <Link href="/prayer-times" className="inline-flex items-center gap-1.5 hover:text-primary">
                   <Clock className="h-3.5 w-3.5" />
                   <span>مواقيت الصلاة في مصر</span>
+                </Link>
+              </li>
+              <li>
+                <Link href="/ramadan" className="inline-flex items-center gap-1.5 hover:text-primary">
+                  <Moon className="h-3.5 w-3.5" />
+                  <span>شهر رمضان المبارك والإمساكية</span>
                 </Link>
               </li>
               <li>

@@ -19,6 +19,7 @@ import {
 import { HeroPrayerCard } from "@/components/prayer/HeroPrayerCard";
 import { DashboardQiblaCard } from "@/components/qibla/DashboardQiblaCard";
 import { DashboardWirdCard } from "@/components/quran/DashboardWirdCard";
+import { DashboardRamadanSection } from "@/components/ramadan/DashboardRamadanSection";
 import { DailyInspirationSection } from "@/components/layout/DailyInspirationSection";
 import { getDailyInspiration } from "@/data/daily-content";
 import {
@@ -48,6 +49,13 @@ const FEATURED_TAFSIR_SURAHS = [
 ];
 
 const QUICK_ACCESS_CARDS = [
+  {
+    href: "/ramadan",
+    title: "شهر رمضان المبارك",
+    desc: "إمساكية الـ ٢٧ محافظة، مواعيد السحور والإفطار، ختمة الـ ٣٠ جزءًا، وأدعية رمضان وليلة القدر",
+    icon: Moon,
+    badge: "٣٠ يومًا",
+  },
   {
     href: "/quran",
     title: "القرآن الكريم",
@@ -140,6 +148,9 @@ export default function HomePage() {
         <DashboardQiblaCard />
         <DashboardWirdCard />
       </div>
+
+      {/* ب-1. قسم شهر رمضان المبارك (الإمساكية للـ ٢٧ محافظة + ختمة الـ ٣٠ جزءًا + الأدعية وجدول الطاعات) */}
+      <DashboardRamadanSection />
 
       {/* ب-2. قسم أجزاء القرآن الكريم (٣٠ جزءًا — القراءة والتلاوة بأصوات ١١ شيخًا) */}
       <section
