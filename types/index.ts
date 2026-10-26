@@ -432,3 +432,53 @@ export interface SavedHadithBookmark {
   createdAt: string;
 }
 
+export type TafsirBookSlug =
+  | "muyassar"
+  | "saadi"
+  | "katheer"
+  | "qurtubi"
+  | "baghawi"
+  | "ma3any"
+  | "e3rab";
+
+export interface TafsirBookMeta {
+  slug: TafsirBookSlug;
+  titleAr: string;
+  shortTitleAr: string;
+  authorAr: string;
+  categoryAr: string;
+  descriptionAr: string;
+  badgeAr: string;
+}
+
+export interface AyahTafsirEntry {
+  ayahNumber: number;
+  ayahText: string;
+  tafsirText: string;
+  wordMeaningsText?: string;
+}
+
+export interface SurahTafsirResult {
+  tafsirMeta: TafsirBookMeta;
+  surahId: number;
+  surahName: string;
+  surahTypeAr: "مكية" | "مدنية";
+  totalVerses: number;
+  juzStart: number;
+  pageStart: number;
+  entries: AyahTafsirEntry[];
+}
+
+export interface AyahCompareTafsirResult {
+  surahId: number;
+  surahName: string;
+  ayahNumber: number;
+  ayahText: string;
+  totalVerses: number;
+  comparisons: {
+    bookMeta: TafsirBookMeta;
+    text: string;
+  }[];
+}
+
+

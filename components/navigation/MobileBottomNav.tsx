@@ -11,6 +11,7 @@ import {
   Heart,
   Home,
   LayoutGrid,
+  Library,
   Moon,
   ScrollText,
   Settings,
@@ -29,6 +30,12 @@ const MAIN_MOBILE_TABS = [
 ];
 
 const MORE_DRAWER_LINKS = [
+  {
+    href: "/tafsir",
+    label: "تفسير القرآن الكريم",
+    desc: "موسوعة التفسير الكاملة (٧ تفاسير معتمدة: الميسر، السعدي، ابن كثير، القرطبي، البغوي، المعاني، والإعراب)",
+    icon: Library,
+  },
   {
     href: "/hadith",
     label: "الأحاديث النبوية الشريفة",
@@ -77,9 +84,14 @@ export function MobileBottomNav() {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const isMoreActive = ["/hadith", "/qibla", "/tasbeeh", "/calendar", "/settings"].some(
-    (p) => pathname.startsWith(p)
-  );
+  const isMoreActive = [
+    "/tafsir",
+    "/hadith",
+    "/qibla",
+    "/tasbeeh",
+    "/calendar",
+    "/settings",
+  ].some((p) => pathname.startsWith(p));
 
   return (
     <>
