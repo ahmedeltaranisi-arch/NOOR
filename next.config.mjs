@@ -7,6 +7,9 @@ const nextConfig = {
     "/api/hadith": ["./data/hadith-books/**/*"],
     "/hadith": ["./data/hadith-books/**/*"],
     "/hadith/[book]": ["./data/hadith-books/**/*"],
+    "/api/tafsir": ["./data/tafsir-books/**/*"],
+    "/tafsir": ["./data/tafsir-books/**/*"],
+    "/tafsir/[book]": ["./data/tafsir-books/**/*"],
   },
 };
 

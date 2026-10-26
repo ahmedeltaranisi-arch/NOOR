@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import { ShieldCheck, BookOpen, Compass, Clock, Heart, ScrollText } from "lucide-react";
+import { ShieldCheck, BookOpen, Compass, Clock, Heart, Library, ScrollText } from "lucide-react";
 
 export function Footer() {
   return (
@@ -53,6 +53,12 @@ export function Footer() {
                 <Link href="/quran" className="inline-flex items-center gap-1.5 hover:text-primary">
                   <BookOpen className="h-3.5 w-3.5" />
                   <span>القرآن الكريم وورد القراءة</span>
+                </Link>
+              </li>
+              <li>
+                <Link href="/tafsir" className="inline-flex items-center gap-1.5 hover:text-primary">
+                  <Library className="h-3.5 w-3.5" />
+                  <span>تفسير القرآن الكريم (٧ تفاسير معتمدة)</span>
                 </Link>
               </li>
               <li>

@@ -738,13 +738,23 @@ export function SurahReaderClient({
       {/* Top Breadcrumb & Surah Header Card */}
       <div className="rounded-3xl border border-border bg-card p-4 shadow-soft sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-border pb-3.5 sm:gap-3 sm:pb-4">
-          <Link
-            href="/quran"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground hover:border-primary hover:text-primary sm:px-3.5"
-          >
-            <ChevronRight className="h-4 w-4" />
-            <span>فهرس سور القرآن الكريم</span>
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/quran"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground hover:border-primary hover:text-primary sm:px-3.5"
+            >
+              <ChevronRight className="h-4 w-4" />
+              <span>فهرس سور القرآن الكريم</span>
+            </Link>
+
+            <Link
+              href={`/tafsir?surah=${surah.id}`}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-gold/40 bg-gold/15 px-3 py-2 text-xs font-extrabold text-amber-900 transition hover:bg-primary hover:text-primary-foreground dark:text-gold sm:px-3.5"
+            >
+              <BookOpen className="h-3.5 w-3.5" />
+              <span>تفسير سورة {surah.name} (٧ تفاسير)</span>
+            </Link>
+          </div>
 
           <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground sm:gap-2 sm:text-xs">
             <span>ترتيب المصحف: {toArabicDigits(surah.id)}</span>
@@ -1206,6 +1216,14 @@ export function SurahReaderClient({
               <BookOpen className="h-3.5 w-3.5 text-primary" />
               <span>حفظ كموضع قراءة</span>
             </button>
+
+            <Link
+              href={`/tafsir?surah=${surah.id}&ayah=${selectedVerseObj.id}`}
+              className="inline-flex items-center gap-1 whitespace-nowrap rounded-xl border border-gold/40 bg-gold/15 px-3 py-1.5 text-xs font-extrabold text-amber-900 hover:bg-primary hover:text-primary-foreground dark:text-gold"
+            >
+              <BookOpen className="h-3.5 w-3.5" />
+              <span>تفسير الآية</span>
+            </Link>
 
             <button
               type="button"

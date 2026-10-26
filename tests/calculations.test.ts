@@ -43,6 +43,15 @@ import {
   TOTAL_HADITH_CHAPTERS_COUNT,
   TOTAL_HADITHS_COUNT,
 } from "@/lib/hadith";
+import {
+  getAyahAllTafsirs,
+  getSurahTafsirData,
+  loadTafsirBookFile,
+  TAFSIR_BOOKS_META,
+  TOTAL_QURAN_SURAHS_COUNT,
+  TOTAL_QURAN_VERSES_COUNT,
+  TOTAL_TAFSIR_BOOKS_COUNT,
+} from "@/lib/tafsir";
 import { ADHAN_VOICES_META } from "@/lib/storage/local-storage";
 import fs from "fs";
 import path from "path";
@@ -377,5 +386,38 @@ describe("4. التقويم الهجري والقرآن الكريم والأذ�
     });
     expect(nawawiSearch.totalItems).toBeGreaterThanOrEqual(1);
     expect(nawawiSearch.items[0].id).toBe(1);
+  });
+
+  it("يتضمن موسوعة تفسير القرآن الكريم الكاملة (7 تفاسير معتمدة لـ 114 سورة و6,236 آية)", () => {
+    expect(TAFSIR_BOOKS_META.length).toBe(7);
+    expect(TOTAL_TAFSIR_BOOKS_COUNT).toBe(7);
+    expect(TOTAL_QURAN_SURAHS_COUNT).toBe(114);
+    expect(TOTAL_QURAN_VERSES_COUNT).toBe(6236);
+
+    for (const meta of TAFSIR_BOOKS_META) {
+      const bookFile = loadTafsirBookFile(meta.slug);
+      expect(Object.keys(bookFile.surahs).length).toBe(114);
+      let verseSum = 0;
+      for (let s = 1; s <= 114; s++) {
+        verseSum += (bookFile.surahs[String(s)] || []).length;
+      }
+      expect(verseSum).toBe(6236);
+    }
+
+    // Verify Surah Al-Fatihah Tafsir
+    const fatihaMuyassar = getSurahTafsirData({
+      tafsirSlug: "muyassar",
+      surahId: 1,
+    });
+    expect(fatihaMuyassar.surahName).toBe("الفاتحة");
+    expect(fatihaMuyassar.entries.length).toBe(7);
+    expect(fatihaMuyassar.entries[0].tafsirText.length).toBeGreaterThan(20);
+
+    // Verify 7-book Ayah comparison for Ayat Al-Kursi (2:255)
+    const kursiCompare = getAyahAllTafsirs(2, 255);
+    expect(kursiCompare.surahId).toBe(2);
+    expect(kursiCompare.ayahNumber).toBe(255);
+    expect(kursiCompare.comparisons.length).toBe(7);
+    expect(kursiCompare.comparisons.every((c) => c.text.length > 0)).toBe(true);
   });
 });
