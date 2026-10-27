@@ -572,6 +572,21 @@ describe("4. التقويم الهجري والقرآن الكريم والأذ�
     expect(baqarah.verses[16].text).toContain("ظُلُمَـٰتࣲ");
     expect(baqarah.verses[71].text).toContain("فَٱدَّ ٰرَءۡتُمۡ");
 
+    const kahf = getSurahDetailById(18)!;
+    expect(kahf.verses[26].text).toContain("كِتَابِ");
+    expect(kahf.verses[26].text).toContain("لِكَلِمَـٰتِهِۦ");
+    expect(kahf.verses[37].text).toContain("لَّـٰكِنَّا۠");
+    expect(kahf.verses[70].text).toContain("رَكِبَا");
+
+    const fontPath = path.join(
+      process.cwd(),
+      "public",
+      "fonts",
+      "amiri-quran-arabic-400-normal.woff2"
+    );
+    expect(fs.existsSync(fontPath)).toBe(true);
+    expect(fs.statSync(fontPath).size).toBeGreaterThan(60 * 1024);
+
     // Verify search works seamlessly across normalized Uthmani orthography
     expect(searchQuranVerses("الصراط", 5).length).toBeGreaterThan(0);
     expect(searchQuranVerses("الرحمن", 5).length).toBeGreaterThan(0);
