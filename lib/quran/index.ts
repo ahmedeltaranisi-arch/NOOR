@@ -39,6 +39,17 @@ export function getSurahDetailById(surahId: number): SurahDetail | undefined {
 }
 
 /**
+ * Expands Uthmani Dagger Alif (U+0670) into standard Alif (ا) when not on Alif Maqsurah/Waw,
+ * so users searching in standard Imlai spelling (e.g. "الصراط", "الكتاب", "العالمين", "غشاوة", "إبراهيم")
+ * match Uthmani verses alongside direct Uthmani searches (e.g. "الرحمن", "ذلك").
+ */
+function normalizeArabicWithExpandedDaggerAlef(text: string): string {
+  const expanded = text
+    .replace(/[\u0640\u202F\u00A0]?\u0670(?![\u0649\u06CC\u064A\u0627])/g, "ا");
+  return normalizeArabicText(expanded);
+}
+
+/**
  * Full-text diacritic-insensitive search across all 6,236 Quranic verses.
  */
 export function searchQuranVerses(query: string, limit = 40): QuranSearchResult[] {
@@ -56,9 +67,13 @@ export function searchQuranVerses(query: string, limit = 40): QuranSearchResult[
   for (const surah of QURAN_DATA) {
     for (const verse of surah.verses) {
       const normalizedVerse = normalizeArabicText(verse.text);
+      const expandedVerse = normalizeArabicWithExpandedDaggerAlef(verse.text);
       if (
         normalizedVerse.includes(cleanQuery) ||
-        (strippedAl.length >= 3 && normalizedVerse.includes(strippedAl))
+        expandedVerse.includes(cleanQuery) ||
+        (strippedAl.length >= 3 &&
+          (normalizedVerse.includes(strippedAl) ||
+            expandedVerse.includes(strippedAl)))
       ) {
         results.push({
           surahId: surah.id,

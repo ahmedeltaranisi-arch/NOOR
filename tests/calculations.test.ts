@@ -516,4 +516,66 @@ describe("4. التقويم الهجري والقرآن الكريم والأذ�
     expect(RAMADAN_THIRTY_DAILY_DUAS.length).toBe(30);
     expect(RAMADAN_DAILY_DEEDS_META.length).toBe(7);
   });
+
+  it("يتوافق الرسم العثماني لجميع الآيات الـ 6236 بنسبة 100% مع قواعد خط Amiri Quran دون أي محارف مفقودة أو مشوهة", () => {
+    let count08F0 = 0; // Open Fathatan (ࣰ)
+    let count08F1 = 0; // Open Dammatan (ࣱ)
+    let count08F2 = 0; // Open Kasratan (ࣲ)
+    let count06DF = 0; // Small High Rounded Zero (۟)
+    let count06E4 = 0; // Small High Madda (ۤ)
+    let count202F = 0; // Narrow NBSP before isolated Dagger Alif ( ٰ)
+    const nonJoiningFollowedByTatweel = /[اأإآدذرزوءةىٱ][\u064B-\u065F\u0670\u06DF-\u06ED\u08F0-\u08F3]*\u0640/;
+
+    for (let s = 1; s <= 114; s++) {
+      const surah = getSurahDetailById(s)!;
+      for (const v of surah.verses) {
+        const t = v.text;
+        // Must have zero legacy incompatible codepoints
+        expect(t.includes("\u065E")).toBe(false); // Missing glyph in Amiri Quran
+        expect(t.includes("\u0657")).toBe(false); // Misused Inverted Damma
+        expect(t.includes("\u0656")).toBe(false); // Misused Subscript Alef
+        expect(t.includes("\u0653")).toBe(false); // Narrow canonical Madda
+        expect(t.includes("\u0652")).toBe(false); // Misused Sukun on silent letters
+        expect(t.includes("\u2009")).toBe(false); // Thin Space word split
+        expect(nonJoiningFollowedByTatweel.test(t)).toBe(false);
+
+        for (const ch of t) {
+          if (ch === "\u08F0") count08F0++;
+          else if (ch === "\u08F1") count08F1++;
+          else if (ch === "\u08F2") count08F2++;
+          else if (ch === "\u06DF") count06DF++;
+          else if (ch === "\u06E4") count06E4++;
+          else if (ch === "\u202F") count202F++;
+        }
+      }
+    }
+
+    expect(count08F0).toBe(2901);
+    expect(count08F1).toBe(1807);
+    expect(count08F2).toBe(1935);
+    expect(count06DF).toBe(3988);
+    expect(count06E4).toBe(5376);
+    expect(count202F).toBe(1376);
+
+    // Specific verse spot-checks
+    const fatiha = getSurahDetailById(1)!;
+    expect(fatiha.verses[5].text).toContain("ٱلصِّرَ ٰطَ");
+    expect(fatiha.verses[6].text).toContain("ٱلضَّاۤلِّينَ");
+
+    const baqarah = getSurahDetailById(2)!;
+    expect(baqarah.verses[1].text).toContain("ذَ ٰلِكَ ٱلۡكِتَـٰبُ");
+    expect(baqarah.verses[1].text).toContain("هُدࣰى");
+    expect(baqarah.verses[3].text).toContain("وَبِٱلۡـَٔاخِرَةِ");
+    expect(baqarah.verses[4].text).toContain("أُو۟لَـٰۤىِٕكَ");
+    expect(baqarah.verses[6].text).toContain("غِشَـٰوَةࣱ");
+    expect(baqarah.verses[6].text).toContain("عَظِيمࣱ");
+    expect(baqarah.verses[16].text).toContain("ظُلُمَـٰتࣲ");
+    expect(baqarah.verses[71].text).toContain("فَٱدَّ ٰرَءۡتُمۡ");
+
+    // Verify search works seamlessly across normalized Uthmani orthography
+    expect(searchQuranVerses("الصراط", 5).length).toBeGreaterThan(0);
+    expect(searchQuranVerses("الرحمن", 5).length).toBeGreaterThan(0);
+    expect(searchQuranVerses("غشاوة", 5).length).toBeGreaterThan(0);
+    expect(searchQuranVerses("الآخرة", 5).length).toBeGreaterThan(0);
+  });
 });

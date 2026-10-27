@@ -1510,7 +1510,7 @@ export function JuzReaderClient({
             {seg.showBismillah && (
               <div className="rounded-2xl border border-gold/25 bg-card py-4 text-center shadow-sm">
                 <p className="font-quran text-2xl font-bold text-primary sm:text-3xl">
-                  بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ
+                  بِسۡمِ ٱللَّهِ ٱلرَّحۡمَـٰنِ ٱلرَّحِيمِ
                 </p>
               </div>
             )}
