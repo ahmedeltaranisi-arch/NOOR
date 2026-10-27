@@ -176,10 +176,12 @@ export function getLocalDateKey(date: Date = new Date()): string {
  */
 export function normalizeArabicText(text: string): string {
   return text
+    .replace(/ـٔ(?=\u064E?\u0627)/g, "")
     .replace(/ـٔ/g, "ا")
-    .replace(/[\u0610-\u061A\u0640\u064B-\u065F\u0670\u06D6-\u06ED]/g, "")
+    .replace(/\u0649[\u0654\u0655]/g, "ا")
+    .replace(/[\u0305\u0610-\u061A\u0640\u064B-\u065F\u0670\u06D6-\u06ED\u08CA-\u08FF\u202F]/g, "")
     .replace(/[أإآٱءؤئ]/g, "ا")
-    .replace(/ى/g, "ي")
+    .replace(/[ىی]/g, "ي")
     .replace(/ة/g, "ه")
     .replace(/\s+/g, " ")
     .trim();
