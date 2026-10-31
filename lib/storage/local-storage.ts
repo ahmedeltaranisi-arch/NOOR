@@ -24,6 +24,7 @@ export const STORAGE_KEYS = {
   QURAN_LAST_READ: "noor_quran_last_read",
   QURAN_BOOKMARKS: "noor_quran_bookmarks",
   QURAN_PREFS: "noor_quran_prefs",
+  QURAN_COMPLETED_JUZS: "noor_quran_completed_juzs",
   DAILY_WIRD: "noor_daily_wird",
   ADHKAR_PROGRESS: "noor_adhkar_progress",
   TASBEEH_STATE: "noor_tasbeeh_state",
@@ -701,6 +702,90 @@ export function getDailyWird(): DailyWirdSettings {
 
 export function saveDailyWird(wird: DailyWirdSettings): void {
   writeStorage(STORAGE_KEYS.DAILY_WIRD, wird);
+}
+
+export interface QuranKhatmahJuzState {
+  completedJuzIds: number[];
+  completedKhatmahCount: number;
+  lastUpdatedAt: string;
+}
+
+export const DEFAULT_QURAN_KHATMAH_JUZ_STATE: QuranKhatmahJuzState = {
+  completedJuzIds: [],
+  completedKhatmahCount: 0,
+  lastUpdatedAt: "",
+};
+
+export function getQuranKhatmahJuzState(): QuranKhatmahJuzState {
+  const saved = readStorage<QuranKhatmahJuzState>(
+    STORAGE_KEYS.QURAN_COMPLETED_JUZS,
+    DEFAULT_QURAN_KHATMAH_JUZ_STATE
+  );
+  const validIds = Array.from(
+    new Set(
+      (Array.isArray(saved?.completedJuzIds) ? saved.completedJuzIds : []).filter(
+        (id) => Number.isInteger(id) && id >= 1 && id <= 30
+      )
+    )
+  ).sort((a, b) => a - b);
+
+  // If all 30 Juzs were completed, reset completedJuzIds for the new Khatmah cycle
+  if (validIds.length >= 30) {
+    const resetState: QuranKhatmahJuzState = {
+      completedJuzIds: [],
+      completedKhatmahCount: (saved?.completedKhatmahCount || 0) + 1,
+      lastUpdatedAt: new Date().toISOString(),
+    };
+    writeStorage(STORAGE_KEYS.QURAN_COMPLETED_JUZS, resetState);
+    return resetState;
+  }
+
+  return {
+    completedJuzIds: validIds,
+    completedKhatmahCount: saved?.completedKhatmahCount || 0,
+    lastUpdatedAt: saved?.lastUpdatedAt || "",
+  };
+}
+
+export function completeQuranJuzInKhatmah(juzId: number): {
+  state: QuranKhatmahJuzState;
+  khatmahJustCompleted: boolean;
+  isJuzCompletedNow: boolean;
+} {
+  const current = getQuranKhatmahJuzState();
+  const nextSet = new Set(current.completedJuzIds);
+  if (Number.isInteger(juzId) && juzId >= 1 && juzId <= 30) {
+    nextSet.add(juzId);
+  }
+  const nextIds = Array.from(nextSet).sort((a, b) => a - b);
+
+  // Once all 30 Juzs (1..30) are completed, reset completedJuzIds to [] so the button
+  // across all 30 Juzs shows "إتمام قراءة الجزء ... وتسجيله بالورد" for the new Khatmah
+  if (nextIds.length >= 30) {
+    const resetState: QuranKhatmahJuzState = {
+      completedJuzIds: [],
+      completedKhatmahCount: current.completedKhatmahCount + 1,
+      lastUpdatedAt: new Date().toISOString(),
+    };
+    writeStorage(STORAGE_KEYS.QURAN_COMPLETED_JUZS, resetState);
+    return {
+      state: resetState,
+      khatmahJustCompleted: true,
+      isJuzCompletedNow: false,
+    };
+  }
+
+  const updatedState: QuranKhatmahJuzState = {
+    completedJuzIds: nextIds,
+    completedKhatmahCount: current.completedKhatmahCount,
+    lastUpdatedAt: new Date().toISOString(),
+  };
+  writeStorage(STORAGE_KEYS.QURAN_COMPLETED_JUZS, updatedState);
+  return {
+    state: updatedState,
+    khatmahJustCompleted: false,
+    isJuzCompletedNow: nextIds.includes(juzId),
+  };
 }
 
 // 5. Adhkar Daily Progress (auto-resets counts on new day while keeping favorites)

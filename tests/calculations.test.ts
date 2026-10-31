@@ -63,7 +63,11 @@ import {
   RAMADAN_ESSENTIAL_DUAS,
   RAMADAN_THIRTY_DAILY_DUAS,
 } from "@/lib/ramadan";
-import { ADHAN_VOICES_META } from "@/lib/storage/local-storage";
+import {
+  ADHAN_VOICES_META,
+  completeQuranJuzInKhatmah,
+  getQuranKhatmahJuzState,
+} from "@/lib/storage/local-storage";
 import fs from "fs";
 import path from "path";
 
@@ -592,5 +596,44 @@ describe("4. التقويم الهجري والقرآن الكريم والأذ�
     expect(searchQuranVerses("الرحمن", 5).length).toBeGreaterThan(0);
     expect(searchQuranVerses("غشاوة", 5).length).toBeGreaterThan(0);
     expect(searchQuranVerses("الآخرة", 5).length).toBeGreaterThan(0);
+  });
+
+  it("يحفظ إتمام قراءة الأجزاء (1 إلى 30) في المتصفح حتى بعد إغلاق الموقع ويعيد الضبط تلقائيًا عند إتمام الثلاثين جزءًا", () => {
+    const store = new Map<string, string>();
+    const prevWindow = (globalThis as Record<string, unknown>).window;
+    (globalThis as Record<string, unknown>).window = {
+      localStorage: {
+        getItem: (k: string) => store.get(k) ?? null,
+        setItem: (k: string, v: string) => {
+          store.set(k, v);
+        },
+      },
+      dispatchEvent: () => true,
+    };
+
+    try {
+      // Complete Juzs 1 through 29 and verify each remains persisted across reloads
+      for (let j = 1; j <= 29; j++) {
+        const res = completeQuranJuzInKhatmah(j);
+        expect(res.khatmahJustCompleted).toBe(false);
+        expect(res.isJuzCompletedNow).toBe(true);
+        const reloaded = getQuranKhatmahJuzState();
+        expect(reloaded.completedJuzIds).toContain(j);
+        expect(reloaded.completedJuzIds.length).toBe(j);
+      }
+
+      // Completing the 30th Juz completes all 30 Juzs and resets completedJuzIds to []
+      const finalRes = completeQuranJuzInKhatmah(30);
+      expect(finalRes.khatmahJustCompleted).toBe(true);
+      expect(finalRes.isJuzCompletedNow).toBe(false);
+      expect(finalRes.state.completedJuzIds).toEqual([]);
+      expect(finalRes.state.completedKhatmahCount).toBe(1);
+
+      const reloadedAfter30 = getQuranKhatmahJuzState();
+      expect(reloadedAfter30.completedJuzIds).toEqual([]);
+      expect(reloadedAfter30.completedKhatmahCount).toBe(1);
+    } finally {
+      (globalThis as Record<string, unknown>).window = prevWindow;
+    }
   });
 });

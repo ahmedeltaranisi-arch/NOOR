@@ -46,15 +46,18 @@ import {
   START_SILENCE_SKIP_SECONDS,
 } from "@/lib/quran/audio";
 import {
+  completeQuranJuzInKhatmah,
   DEFAULT_QURAN_PREFS,
   getDailyWird,
   getLastReadPosition,
   getQuranBookmarks,
+  getQuranKhatmahJuzState,
   getQuranPrefs,
   QuranReaderPrefs,
   saveDailyWird,
   saveLastReadPosition,
   saveQuranPrefs,
+  STORAGE_CHANGE_EVENT,
   toggleQuranBookmark,
 } from "@/lib/storage/local-storage";
 import { logSpiritualActivity } from "@/lib/storage/indexed-db";
@@ -141,7 +144,8 @@ export function JuzReaderClient({
 
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [savedToast, setSavedToast] = useState<string | null>(null);
-  const [juzCompletedToday, setJuzCompletedToday] = useState(false);
+  const [completedJuzIds, setCompletedJuzIds] = useState<number[]>([]);
+  const juzCompletedToday = completedJuzIds.includes(juz.id);
 
   const audioMode: QuranAudioMode = prefs.audioMode || "gapless-ayah";
   const smartCrossTriggerEnabled = prefs.smartCrossTriggerEnabled !== false;
@@ -188,6 +192,7 @@ export function JuzReaderClient({
     setPrefs(getQuranPrefs());
     setBookmarks(getQuranBookmarks());
     setLastRead(getLastReadPosition());
+    setCompletedJuzIds(getQuranKhatmahJuzState().completedJuzIds);
     setSelectedIndex(0);
     setPlayingIndex(0);
     playingIndexRef.current = 0;
@@ -200,6 +205,16 @@ export function JuzReaderClient({
     crossTriggeredIndexRef.current = null;
     stopAllAudio();
     preloadCacheRef.current.clear();
+
+    const syncKhatmahState = () => {
+      setCompletedJuzIds(getQuranKhatmahJuzState().completedJuzIds);
+    };
+    window.addEventListener(STORAGE_CHANGE_EVENT, syncKhatmahState);
+    window.addEventListener("storage", syncKhatmahState);
+    return () => {
+      window.removeEventListener(STORAGE_CHANGE_EVENT, syncKhatmahState);
+      window.removeEventListener("storage", syncKhatmahState);
+    };
   }, [juz.id, stopAllAudio]);
 
   const currentReciter =
@@ -824,6 +839,11 @@ export function JuzReaderClient({
       handleSaveLastRead(lastSeg.surahId, lastSeg.surahName, lastSeg.endAyah);
     }
 
+    if (juzCompletedToday) {
+      showToast(`تم تسجيل قراءة ${juz.nameAr} بحمد الله (${toArabicDigits(completedJuzIds.length)} من ٣٠ جزءًا).`);
+      return;
+    }
+
     const wird = getDailyWird();
     const todayKey = getLocalDateKey();
     const addAmount =
@@ -849,14 +869,28 @@ export function JuzReaderClient({
       },
     });
 
-    setJuzCompletedToday(true);
+    const { state: nextKhatmahState, khatmahJustCompleted } =
+      completeQuranJuzInKhatmah(juz.id);
+    setCompletedJuzIds(nextKhatmahState.completedJuzIds);
+
     await logSpiritualActivity({
       dateKey: todayKey,
       type: "quran-wird",
-      titleAr: `إتمام قراءة ${juz.nameAr}`,
-      detailsAr: `تمت قراءة ${juz.nameAr} (${juz.titleAr}) كاملًا بحمد الله`,
+      titleAr: khatmahJustCompleted
+        ? `إتمام ختم القرآن الكريم كاملًا (٣٠ جزءًا)`
+        : `إتمام قراءة ${juz.nameAr}`,
+      detailsAr: khatmahJustCompleted
+        ? `تمت قراءة الأجزاء الثلاثين كاملة بحمد الله وبدء ختمة جديدة`
+        : `تمت قراءة ${juz.nameAr} (${juz.titleAr}) كاملًا بحمد الله`,
     });
-    showToast(`تقبل الله منك! تم تسجيل قراءة ${juz.nameAr} في وردك اليومي.`);
+
+    if (khatmahJustCompleted) {
+      showToast(
+        "مبارك ختم القرآن الكريم كاملًا (٣٠ جزءًا) بحمد الله! تم بدء ختمة جديدة."
+      );
+    } else {
+      showToast(`تقبل الله منك! تم تسجيل قراءة ${juz.nameAr} بحمد الله.`);
+    }
   };
 
   const isBookmarked = (surahId: number, ayahNum: number) =>
