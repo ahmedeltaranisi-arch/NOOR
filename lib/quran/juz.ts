@@ -1,6 +1,14 @@
 import quranRawData from "@/data/quran-uthmani.json";
 import { getSurahMetaById } from "@/lib/quran/metadata";
-import { Ayah, JuzDetail, JuzMeta, JuzSurahSegment } from "@/types";
+import {
+  Ayah,
+  HizbDetail,
+  HizbMeta,
+  HizbQuarterMeta,
+  JuzDetail,
+  JuzMeta,
+  JuzSurahSegment,
+} from "@/types";
 
 interface RawSurah {
   id: number;
@@ -413,29 +421,106 @@ export function getJuzMetaById(juzId: number): JuzMeta | undefined {
   return QURAN_JUZ_META.find((j) => j.id === juzId);
 }
 
-/**
- * Returns the full Uthmani text of a Juz (1..30) grouped by its constituent Surahs and verse ranges.
- */
-export function getJuzDetailById(juzId: number): JuzDetail | undefined {
-  const meta = getJuzMetaById(juzId);
-  if (!meta) return undefined;
+const HIZB_ORDINAL_NAMES_AR: readonly string[] = [
+  "الحزب الأول",
+  "الحزب الثاني",
+  "الحزب الثالث",
+  "الحزب الرابع",
+  "الحزب الخامس",
+  "الحزب السادس",
+  "الحزب السابع",
+  "الحزب الثامن",
+  "الحزب التاسع",
+  "الحزب العاشر",
+  "الحزب الحادي عشر",
+  "الحزب الثاني عشر",
+  "الحزب الثالث عشر",
+  "الحزب الرابع عشر",
+  "الحزب الخامس عشر",
+  "الحزب السادس عشر",
+  "الحزب السابع عشر",
+  "الحزب الثامن عشر",
+  "الحزب التاسع عشر",
+  "الحزب العشرون",
+  "الحزب الحادي والعشرون",
+  "الحزب الثاني والعشرون",
+  "الحزب الثالث والعشرون",
+  "الحزب الرابع والعشرون",
+  "الحزب الخامس والعشرون",
+  "الحزب السادس والعشرون",
+  "الحزب السابع والعشرون",
+  "الحزب الثامن والعشرون",
+  "الحزب التاسع والعشرون",
+  "الحزب الثلاثون",
+  "الحزب الحادي والثلاثون",
+  "الحزب الثاني والثلاثون",
+  "الحزب الثالث والثلاثون",
+  "الحزب الرابع والثلاثون",
+  "الحزب الخامس والثلاثون",
+  "الحزب السادس والثلاثون",
+  "الحزب السابع والثلاثون",
+  "الحزب الثامن والثلاثون",
+  "الحزب التاسع والثلاثون",
+  "الحزب الأربعون",
+  "الحزب الحادي والأربعون",
+  "الحزب الثاني والأربعون",
+  "الحزب الثالث والأربعون",
+  "الحزب الرابع والأربعون",
+  "الحزب الخامس والأربعون",
+  "الحزب السادس والأربعون",
+  "الحزب السابع والأربعون",
+  "الحزب الثامن والأربعون",
+  "الحزب التاسع والأربعون",
+  "الحزب الخمسون",
+  "الحزب الحادي والخمسون",
+  "الحزب الثاني والخمسون",
+  "الحزب الثالث والخمسون",
+  "الحزب الرابع والخمسون",
+  "الحزب الخامس والخمسون",
+  "الحزب السادس والخمسون",
+  "الحزب السابع والخمسون",
+  "الحزب الثامن والخمسون",
+  "الحزب التاسع والخمسون",
+  "الحزب الستون",
+];
 
+const QUARTER_LABELS_AR: Record<1 | 2 | 3 | 4, { full: string; short: string }> = {
+  1: { full: "الربع الأول (بداية الحزب)", short: "بداية الحزب" },
+  2: { full: "الربع الثاني (ربع الحزب)", short: "ربع الحزب" },
+  3: { full: "الربع الثالث (نصف الحزب)", short: "نصف الحزب" },
+  4: { full: "الربع الرابع (ثلاثة أرباع الحزب)", short: "ثلاثة أرباع الحزب" },
+};
+
+interface FlatQuranVerseRef {
+  surahId: number;
+  surahName: string;
+  ayahNumber: number;
+  text: string;
+}
+
+function buildSegmentsBetween(
+  startSurahId: number,
+  startAyah: number,
+  endSurahId: number,
+  endAyah: number
+): { segments: JuzSurahSegment[]; totalVerses: number } {
   const segments: JuzSurahSegment[] = [];
-  let totalVersesInJuz = 0;
+  let totalVerses = 0;
 
-  for (let sId = meta.startSurahId; sId <= meta.endSurahId; sId++) {
+  for (let sId = startSurahId; sId <= endSurahId; sId++) {
     const rawSurah = QURAN_DATA.find((s) => s.id === sId);
     const surahMeta = getSurahMetaById(sId);
     if (!rawSurah || !surahMeta) continue;
 
-    const fromAyah = sId === meta.startSurahId ? meta.startAyah : 1;
-    const toAyah = sId === meta.endSurahId ? meta.endAyah : rawSurah.total_verses;
+    const fromAyah = sId === startSurahId ? startAyah : 1;
+    const toAyah = sId === endSurahId ? endAyah : rawSurah.total_verses;
 
     const verses = rawSurah.verses.filter(
       (v) => v.id >= fromAyah && v.id <= toAyah
     );
+    if (verses.length === 0) continue;
 
-    totalVersesInJuz += verses.length;
+    totalVerses += verses.length;
 
     segments.push({
       surahId: sId,
@@ -449,9 +534,173 @@ export function getJuzDetailById(juzId: number): JuzDetail | undefined {
     });
   }
 
+  return { segments, totalVerses };
+}
+
+function extractOpeningSnippet(uthmaniText: string, maxWords = 4): string {
+  const cleaned = uthmaniText.replace(/\u06de/g, "").trim();
+  const words = cleaned.split(/\s+/).filter(Boolean);
+  return words.slice(0, maxWords).join(" ");
+}
+
+function buildAllQuartersAndAhzab(): {
+  quarters: HizbQuarterMeta[];
+  hizbs: HizbMeta[];
+} {
+  const flatVerses: FlatQuranVerseRef[] = [];
+  const quarterStartIndices: number[] = [0]; // Quarter 1 starts at 1:1 (index 0)
+
+  for (const surah of QURAN_DATA) {
+    const meta = getSurahMetaById(surah.id);
+    const canonicalSurahName = meta?.name || surah.name;
+    for (const verse of surah.verses) {
+      const idx = flatVerses.length;
+      if (idx > 0 && verse.text.includes("\u06de")) {
+        quarterStartIndices.push(idx);
+      }
+      flatVerses.push({
+        surahId: surah.id,
+        surahName: canonicalSurahName,
+        ayahNumber: verse.id,
+        text: verse.text,
+      });
+    }
+  }
+
+  const quarters: HizbQuarterMeta[] = [];
+
+  for (let qIdx = 0; qIdx < quarterStartIndices.length; qIdx++) {
+    const startFlatIdx = quarterStartIndices[qIdx];
+    const endFlatIdx =
+      qIdx + 1 < quarterStartIndices.length
+        ? quarterStartIndices[qIdx + 1] - 1
+        : flatVerses.length - 1;
+
+    const startRef = flatVerses[startFlatIdx];
+    const endRef = flatVerses[endFlatIdx];
+
+    const hizbId = Math.floor(qIdx / 4) + 1; // 1..60
+    const juzId = Math.floor(qIdx / 8) + 1; // 1..30
+    const quarterInHizb = ((qIdx % 4) + 1) as 1 | 2 | 3 | 4;
+    const quarterInJuz = ((qIdx % 8) + 1) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+    const labels = QUARTER_LABELS_AR[quarterInHizb];
+
+    quarters.push({
+      id: qIdx + 1,
+      hizbId,
+      juzId,
+      quarterInHizb,
+      quarterInJuz,
+      labelAr: labels.full,
+      shortLabelAr: labels.short,
+      startSurahId: startRef.surahId,
+      startSurahName: startRef.surahName,
+      startAyah: startRef.ayahNumber,
+      endSurahId: endRef.surahId,
+      endSurahName: endRef.surahName,
+      endAyah: endRef.ayahNumber,
+      totalVerses: endFlatIdx - startFlatIdx + 1,
+      openingSnippet: extractOpeningSnippet(startRef.text, 4),
+    });
+  }
+
+  const hizbs: HizbMeta[] = [];
+  for (let h = 1; h <= 60; h++) {
+    const hQuarters = quarters.filter((q) => q.hizbId === h);
+    const firstQ = hQuarters[0];
+    const lastQ = hQuarters[hQuarters.length - 1];
+    const juzId = Math.ceil(h / 2);
+    const orderInJuz: 1 | 2 = h % 2 === 1 ? 1 : 2;
+    const juzMeta = getJuzMetaById(juzId);
+    const juzNameAr = juzMeta?.nameAr || `الجزء ${juzId}`;
+    const orderWord = orderInJuz === 1 ? "الحزب الأول" : "الحزب الثاني";
+
+    hizbs.push({
+      id: h,
+      juzId,
+      orderInJuz,
+      nameAr: HIZB_ORDINAL_NAMES_AR[h - 1] || `الحزب ${h}`,
+      orderInJuzLabelAr: `${orderWord} من ${juzNameAr}`,
+      titleAr: firstQ.openingSnippet,
+      startSurahId: firstQ.startSurahId,
+      startSurahName: firstQ.startSurahName,
+      startAyah: firstQ.startAyah,
+      endSurahId: lastQ.endSurahId,
+      endSurahName: lastQ.endSurahName,
+      endAyah: lastQ.endAyah,
+      totalVerses: hQuarters.reduce((sum, q) => sum + q.totalVerses, 0),
+      quarters: hQuarters,
+    });
+  }
+
+  return { quarters, hizbs };
+}
+
+const BUILT_AHZAB = buildAllQuartersAndAhzab();
+
+/**
+ * All 240 Rub' al-Hizb quarters across the 30 Juzs and 60 Ahzab of the Holy Quran.
+ */
+export const QURAN_HIZB_QUARTERS_META: HizbQuarterMeta[] = BUILT_AHZAB.quarters;
+
+/**
+ * All 60 Ahzab (Hizbs 1..60) across the 30 Juzs of the Holy Quran (2 Ahzab per Juz).
+ */
+export const QURAN_HIZB_META: HizbMeta[] = BUILT_AHZAB.hizbs;
+
+export function getHizbMetaById(hizbId: number): HizbMeta | undefined {
+  return QURAN_HIZB_META.find((h) => h.id === hizbId);
+}
+
+export function getHizbsByJuzId(
+  juzId: number
+): [HizbMeta, HizbMeta] | undefined {
+  const h1 = getHizbMetaById((juzId - 1) * 2 + 1);
+  const h2 = getHizbMetaById((juzId - 1) * 2 + 2);
+  if (!h1 || !h2) return undefined;
+  return [h1, h2];
+}
+
+export function getHizbDetailById(hizbId: number): HizbDetail | undefined {
+  const meta = getHizbMetaById(hizbId);
+  if (!meta) return undefined;
+
+  const { segments } = buildSegmentsBetween(
+    meta.startSurahId,
+    meta.startAyah,
+    meta.endSurahId,
+    meta.endAyah
+  );
+
+  return {
+    ...meta,
+    segments,
+  };
+}
+
+/**
+ * Returns the full Uthmani text of a Juz (1..30) grouped by its constituent Surahs and verse ranges,
+ * as well as divided into its two canonical Ahzab (Hizb 2J-1 and Hizb 2J) and their 8 Quarters.
+ */
+export function getJuzDetailById(juzId: number): JuzDetail | undefined {
+  const meta = getJuzMetaById(juzId);
+  if (!meta) return undefined;
+
+  const { segments, totalVerses: totalVersesInJuz } = buildSegmentsBetween(
+    meta.startSurahId,
+    meta.startAyah,
+    meta.endSurahId,
+    meta.endAyah
+  );
+
+  const hizb1 = getHizbDetailById((juzId - 1) * 2 + 1);
+  const hizb2 = getHizbDetailById((juzId - 1) * 2 + 2);
+  if (!hizb1 || !hizb2) return undefined;
+
   return {
     ...meta,
     totalVersesInJuz,
     segments,
+    hizbs: [hizb1, hizb2],
   };
 }

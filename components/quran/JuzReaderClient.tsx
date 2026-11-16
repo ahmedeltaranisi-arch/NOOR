@@ -30,6 +30,7 @@ import {
   ZoomOut,
 } from "lucide-react";
 import { QURAN_RECITERS } from "@/data/daily-content";
+import { QURAN_HIZB_META } from "@/lib/quran/juz";
 import {
   AUDIO_OVERLAP_HOLD_MS,
   DEEP_OVERLAP_LEAD_SECONDS,
@@ -63,6 +64,8 @@ import {
 import { logSpiritualActivity } from "@/lib/storage/indexed-db";
 import { getLocalDateKey, toArabicDigits, cn } from "@/lib/utils";
 import {
+  HizbDetail,
+  HizbQuarterMeta,
   JuzDetail,
   JuzMeta,
   LastReadPosition,
@@ -145,7 +148,24 @@ export function JuzReaderClient({
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [savedToast, setSavedToast] = useState<string | null>(null);
   const [completedJuzIds, setCompletedJuzIds] = useState<number[]>([]);
+  const [activeHizbFilter, setActiveHizbFilter] = useState<"all" | 1 | 2>("all");
   const juzCompletedToday = completedJuzIds.includes(juz.id);
+
+  const displayedHizbs: HizbDetail[] = useMemo(() => {
+    if (activeHizbFilter === 1) return [juz.hizbs[0]];
+    if (activeHizbFilter === 2) return [juz.hizbs[1]];
+    return juz.hizbs;
+  }, [activeHizbFilter, juz.hizbs]);
+
+  const quarterByVerseKey = useMemo(() => {
+    const map = new Map<string, { quarter: HizbQuarterMeta; hizb: HizbDetail }>();
+    for (const hizb of juz.hizbs) {
+      for (const q of hizb.quarters) {
+        map.set(`${q.startSurahId}:${q.startAyah}`, { quarter: q, hizb });
+      }
+    }
+    return map;
+  }, [juz.hizbs]);
 
   const audioMode: QuranAudioMode = prefs.audioMode || "gapless-ayah";
   const smartCrossTriggerEnabled = prefs.smartCrossTriggerEnabled !== false;
@@ -205,6 +225,20 @@ export function JuzReaderClient({
     crossTriggeredIndexRef.current = null;
     stopAllAudio();
     preloadCacheRef.current.clear();
+
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const hizbParam = params.get("hizb");
+      if (hizbParam === "1" || hizbParam === String(juz.hizbs[0].id)) {
+        setActiveHizbFilter(1);
+      } else if (hizbParam === "2" || hizbParam === String(juz.hizbs[1].id)) {
+        setActiveHizbFilter(2);
+      } else {
+        setActiveHizbFilter("all");
+      }
+    } else {
+      setActiveHizbFilter("all");
+    }
 
     const syncKhatmahState = () => {
       setCompletedJuzIds(getQuranKhatmahJuzState().completedJuzIds);
@@ -954,11 +988,67 @@ export function JuzReaderClient({
                 ))}
               </select>
             </div>
+
+            {/* Quick Jump to Any of the 60 Ahzab */}
+            <div className="inline-flex items-center gap-1.5 rounded-xl border border-gold/40 bg-gold/10 px-2.5 py-1.5">
+              <BookOpen className="h-3.5 w-3.5 shrink-0 text-gold" />
+              <select
+                aria-label="الانتقال إلى حزب من الأحزاب الستين"
+                value={
+                  activeHizbFilter === 2
+                    ? juz.hizbs[1].id
+                    : juz.hizbs[0].id
+                }
+                onChange={(e) => {
+                  const targetHizbId = Number(e.target.value);
+                  const targetHizb = QURAN_HIZB_META.find(
+                    (h) => h.id === targetHizbId
+                  );
+                  if (!targetHizb) return;
+                  if (targetHizb.juzId === juz.id) {
+                    setActiveHizbFilter(targetHizb.orderInJuz);
+                    const pIdx = findPlaylistIndex(
+                      targetHizb.startSurahId,
+                      targetHizb.startAyah
+                    );
+                    setSelectedIndex(pIdx);
+                    if (typeof document !== "undefined") {
+                      setTimeout(() => {
+                        document
+                          .getElementById(`hizb-${targetHizb.id}`)
+                          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }, 80);
+                    }
+                  } else {
+                    router.push(
+                      `/quran/juz/${targetHizb.juzId}?hizb=${targetHizb.orderInJuz}`
+                    );
+                  }
+                }}
+                className="bg-transparent text-xs font-bold text-foreground focus:outline-none"
+              >
+                {QURAN_HIZB_META.map((hItem) => (
+                  <option
+                    key={hItem.id}
+                    value={hItem.id}
+                    className="bg-card text-foreground"
+                  >
+                    الحزب {toArabicDigits(hItem.id)} من ٦٠ — {hItem.nameAr} (
+                    {hItem.orderInJuzLabelAr})
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground sm:gap-2 sm:text-xs">
             <span>
               من ص {toArabicDigits(juz.pageStart)} إلى ص {toArabicDigits(juz.pageEnd)}
+            </span>
+            <span>•</span>
+            <span>
+              الحزبان {toArabicDigits(juz.hizbs[0].id)} و{" "}
+              {toArabicDigits(juz.hizbs[1].id)} (٨ أرباع)
             </span>
             <span>•</span>
             <span>{toArabicDigits(juz.totalVersesInJuz)} آية</span>
@@ -969,8 +1059,12 @@ export function JuzReaderClient({
 
         {/* Ornate Juz Banner */}
         <div className="my-4 flex flex-col items-center justify-center gap-3 rounded-2xl border border-gold/30 bg-gradient-to-l from-primary via-emerald-900 to-primary px-4 py-6 text-center text-white shadow-inner sm:my-5 sm:gap-3.5 sm:px-6 sm:py-8">
-          <div className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-black/20 px-3.5 py-1 text-xs font-bold text-gold">
+          <div className="inline-flex flex-wrap items-center justify-center gap-2 rounded-full border border-gold/30 bg-black/20 px-3.5 py-1 text-xs font-bold text-gold">
             <span>الجزء رقم {toArabicDigits(juz.id)} من ٣٠</span>
+            <span>•</span>
+            <span>
+              يضم {juz.hizbs[0].nameAr} و{juz.hizbs[1].nameAr} (٨ أرباع)
+            </span>
             <span>•</span>
             <span>مطلع الجزء: «{juz.titleAr}»</span>
           </div>
@@ -987,6 +1081,200 @@ export function JuzReaderClient({
             <span>
               ينتهي عند سورة {juz.endSurahName} (آية {toArabicDigits(juz.endAyah)})
             </span>
+          </div>
+        </div>
+
+        {/* AHZAB & QUARTERS DIVISION BAR FOR THIS JUZ */}
+        <div className="mb-4 rounded-2xl border border-gold/35 bg-gradient-to-l from-gold/10 via-card to-primary/5 p-3.5 sm:p-5">
+          <div className="flex flex-col justify-between gap-3 border-b border-border/70 pb-3.5 lg:flex-row lg:items-center">
+            <div>
+              <div className="inline-flex items-center gap-1.5 text-xs font-extrabold text-gold sm:text-sm">
+                <Layers className="h-4 w-4" />
+                <span>
+                  تقسيم قراءة {juz.nameAr} إلى أحزاب وأرباع (الحزبان{" "}
+                  {toArabicDigits(juz.hizbs[0].id)} و
+                  {toArabicDigits(juz.hizbs[1].id)} من أصل ٦٠ حزبًا):
+                </span>
+              </div>
+              <p className="mt-1 text-[11px] text-muted-foreground sm:text-xs">
+                اختر قراءة الجزء كاملًا مقسمًا إلى حزبين، أو تصفح كل حزب وأرباعه الأربعة على حدة مع التلاوة المتصلة
+              </p>
+            </div>
+
+            {/* 3 Hizb Filter Buttons */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setActiveHizbFilter("all")}
+                className={cn(
+                  "rounded-xl border px-3 py-2 text-xs font-extrabold transition",
+                  activeHizbFilter === "all"
+                    ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                    : "border-border bg-card text-foreground hover:border-primary/40 hover:text-primary"
+                )}
+              >
+                عرض الحزبين معًا ({toArabicDigits(juz.totalVersesInJuz)} آية)
+              </button>
+              {juz.hizbs.map((h) => {
+                const isAct = activeHizbFilter === h.orderInJuz;
+                return (
+                  <button
+                    key={h.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveHizbFilter(h.orderInJuz);
+                      const pIdx = findPlaylistIndex(
+                        h.startSurahId,
+                        h.startAyah
+                      );
+                      setSelectedIndex(pIdx);
+                    }}
+                    className={cn(
+                      "rounded-xl border px-3 py-2 text-xs font-extrabold transition",
+                      isAct
+                        ? "border-gold bg-gold text-emerald-950 shadow-sm"
+                        : "border-border bg-card text-foreground hover:border-gold/50 hover:text-primary"
+                    )}
+                  >
+                    {h.orderInJuz === 1 ? "الحزب الأول بالجزء" : "الحزب الثاني بالجزء"}:{" "}
+                    {h.nameAr} ({toArabicDigits(h.totalVerses)} آية)
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 2 Hizb Overview Cards with their 4 Quarters each */}
+          <div className="mt-3.5 grid grid-cols-1 gap-3 lg:grid-cols-2">
+            {juz.hizbs.map((hizb) => {
+              const isFocused =
+                activeHizbFilter === "all" || activeHizbFilter === hizb.orderInJuz;
+              return (
+                <div
+                  key={hizb.id}
+                  className={cn(
+                    "rounded-2xl border p-3.5 transition-all sm:p-4",
+                    activeHizbFilter === hizb.orderInJuz
+                      ? "border-gold bg-gold/10 shadow-sm"
+                      : isFocused
+                      ? "border-border bg-card/90"
+                      : "border-border/50 bg-muted/25 opacity-75"
+                  )}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="inline-flex items-center justify-center rounded-lg bg-primary px-2.5 py-0.5 text-[11px] font-extrabold text-primary-foreground">
+                          الحزب {toArabicDigits(hizb.id)} من ٦٠
+                        </span>
+                        <span className="rounded-lg border border-gold/40 bg-gold/15 px-2 py-0.5 text-[11px] font-bold text-gold">
+                          {hizb.orderInJuzLabelAr}
+                        </span>
+                      </div>
+                      <h2 className="mt-1.5 font-serif text-base font-extrabold text-foreground sm:text-lg">
+                        {hizb.nameAr} — «{hizb.titleAr}»
+                      </h2>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        من سورة {hizb.startSurahName} (آية{" "}
+                        {toArabicDigits(hizb.startAyah)}) إلى سورة{" "}
+                        {hizb.endSurahName} (آية {toArabicDigits(hizb.endAyah)}) •{" "}
+                        {toArabicDigits(hizb.totalVerses)} آية
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (
+                            activeHizbFilter !== "all" &&
+                            activeHizbFilter !== hizb.orderInJuz
+                          ) {
+                            setActiveHizbFilter(hizb.orderInJuz);
+                          }
+                          const pIdx = findPlaylistIndex(
+                            hizb.startSurahId,
+                            hizb.startAyah
+                          );
+                          playVerseAtIndex(pIdx);
+                        }}
+                        className="inline-flex items-center gap-1 rounded-xl bg-primary px-2.5 py-1.5 text-[11px] font-bold text-primary-foreground transition hover:bg-primary/90"
+                      >
+                        <Play className="h-3 w-3 fill-current" />
+                        <span>تلاوة الحزب</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setActiveHizbFilter(
+                            activeHizbFilter === hizb.orderInJuz
+                              ? "all"
+                              : hizb.orderInJuz
+                          )
+                        }
+                        className="inline-flex items-center gap-1 rounded-xl border border-border bg-background px-2.5 py-1.5 text-[11px] font-bold text-foreground transition hover:border-primary hover:text-primary"
+                      >
+                        <span>
+                          {activeHizbFilter === hizb.orderInJuz
+                            ? "عرض الحزبين"
+                            : "قراءة منفردة"}
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 4 Quarters of this Hizb */}
+                  <div className="mt-3 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+                    {hizb.quarters.map((q) => (
+                      <button
+                        key={q.id}
+                        type="button"
+                        onClick={() => {
+                          if (
+                            activeHizbFilter !== "all" &&
+                            activeHizbFilter !== hizb.orderInJuz
+                          ) {
+                            setActiveHizbFilter("all");
+                          }
+                          const pIdx = findPlaylistIndex(
+                            q.startSurahId,
+                            q.startAyah
+                          );
+                          setSelectedIndex(pIdx);
+                          if (isPlaying) {
+                            playVerseAtIndex(pIdx);
+                          }
+                          if (typeof document !== "undefined") {
+                            setTimeout(() => {
+                              document
+                                .getElementById(
+                                  `surah-${q.startSurahId}-ayah-${q.startAyah}`
+                                )
+                                ?.scrollIntoView({
+                                  behavior: "smooth",
+                                  block: "center",
+                                });
+                            }, 80);
+                          }
+                        }}
+                        className="flex flex-col items-start rounded-xl border border-border/80 bg-background/80 p-2 text-right transition hover:border-gold hover:bg-gold/10"
+                      >
+                        <span className="text-[10px] font-extrabold text-gold">
+                          ۞ {q.shortLabelAr}
+                        </span>
+                        <span className="mt-0.5 line-clamp-1 text-[11px] font-bold text-foreground">
+                          {q.startSurahName} ({toArabicDigits(q.startAyah)})
+                        </span>
+                        <span className="mt-0.5 line-clamp-1 font-quran text-[11px] text-muted-foreground">
+                          «{q.openingSnippet}»
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -1492,232 +1780,367 @@ export function JuzReaderClient({
         </div>
       )}
 
-      {/* JUZ SEGMENTS (Surahs within this Juz) */}
-      <div className="space-y-6">
-        {juz.segments.map((seg) => (
+      {/* JUZ DIVIDED INTO AHZAB (Hizb 1 & Hizb 2 of this Juz) */}
+      <div className="space-y-8">
+        {displayedHizbs.map((hizb) => (
           <section
-            key={`${juz.id}-surah-${seg.surahId}`}
-            aria-label={`سورة ${seg.surahName} في ${juz.nameAr}`}
-            className="space-y-4"
+            key={`juz-${juz.id}-hizb-${hizb.id}`}
+            id={`hizb-${hizb.id}`}
+            aria-label={`${hizb.nameAr} (${hizb.orderInJuzLabelAr})`}
+            className="scroll-mt-24 space-y-5 rounded-3xl border-2 border-gold/35 bg-card/40 p-3.5 shadow-soft sm:p-6"
           >
-            {/* Surah Segment Header Banner */}
-            <div className="flex flex-col items-center justify-between gap-2 rounded-2xl border border-gold/35 bg-gradient-to-l from-primary/10 via-gold/10 to-primary/10 px-4 py-3.5 sm:flex-row sm:px-6">
-              <div className="flex items-center gap-2.5">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-xs font-extrabold text-primary-foreground">
-                  {toArabicDigits(seg.surahId)}
-                </span>
+            {/* Hizb Section Header Banner */}
+            <div className="rounded-2xl border border-gold/40 bg-gradient-to-l from-emerald-950 via-primary to-emerald-950 p-4 text-white shadow-sm sm:p-5">
+              <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
                 <div>
-                  <h2 className="font-quran text-xl font-bold text-foreground sm:text-2xl">
-                    سُورَةُ {seg.surahName}
+                  <div className="inline-flex flex-wrap items-center gap-2 rounded-full border border-gold/40 bg-black/25 px-3 py-1 text-[11px] font-extrabold text-gold">
+                    <span>الحزب رقم {toArabicDigits(hizb.id)} من ٦٠</span>
+                    <span>•</span>
+                    <span>{hizb.orderInJuzLabelAr}</span>
+                    <span>•</span>
+                    <span>٤ أرباع ({toArabicDigits(hizb.totalVerses)} آية)</span>
+                  </div>
+                  <h2 className="mt-2 font-serif text-xl font-bold text-white sm:text-2xl">
+                    {hizb.nameAr} — مطلع الحزب: «{hizb.titleAr}»
                   </h2>
-                  <p className="text-xs text-muted-foreground">
-                    {seg.surahTypeAr} • الآيات في هذا الجزء: من{" "}
-                    {toArabicDigits(seg.startAyah)} إلى {toArabicDigits(seg.endAyah)} (من أصل{" "}
-                    {toArabicDigits(seg.totalSurahVerses)} آية)
+                  <p className="mt-1 text-xs text-emerald-100">
+                    من سورة {hizb.startSurahName} (آية{" "}
+                    {toArabicDigits(hizb.startAyah)}) إلى سورة{" "}
+                    {hizb.endSurahName} (آية {toArabicDigits(hizb.endAyah)})
                   </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      playVerseAtIndex(
+                        findPlaylistIndex(hizb.startSurahId, hizb.startAyah)
+                      )
+                    }
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-gold px-3.5 py-2 text-xs font-extrabold text-emerald-950 shadow-sm transition hover:bg-gold/90"
+                  >
+                    <Play className="h-3.5 w-3.5 fill-current" />
+                    <span>تلاوة من بداية {hizb.nameAr}</span>
+                  </button>
+
+                  {activeHizbFilter === "all" ? (
+                    <button
+                      type="button"
+                      onClick={() => setActiveHizbFilter(hizb.orderInJuz)}
+                      className="inline-flex items-center gap-1 rounded-xl border border-white/25 bg-white/10 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/20"
+                    >
+                      <span>عرض {hizb.nameAr} فقط</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setActiveHizbFilter("all")}
+                      className="inline-flex items-center gap-1 rounded-xl border border-white/25 bg-white/10 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/20"
+                    >
+                      <span>عرض الحزبين معًا</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    playVerseAtIndex(findPlaylistIndex(seg.surahId, seg.startAyah))
-                  }
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground transition hover:bg-primary/90"
-                >
-                  <Play className="h-3 w-3 fill-current" />
-                  <span>تلاوة من بداية السورة بالجزء</span>
-                </button>
-
-                <Link
-                  href={`/quran/${seg.surahId}`}
-                  className="inline-flex items-center gap-1 rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-bold text-primary transition hover:border-primary"
-                >
-                  <span>السورة كاملة</span>
-                  <ChevronLeft className="h-3.5 w-3.5" />
-                </Link>
+              {/* 4 Quarters Quick Bar inside Hizb Banner */}
+              <div className="mt-3.5 grid grid-cols-2 gap-2 border-t border-white/15 pt-3 sm:grid-cols-4">
+                {hizb.quarters.map((q) => (
+                  <button
+                    key={q.id}
+                    type="button"
+                    onClick={() => {
+                      const pIdx = findPlaylistIndex(
+                        q.startSurahId,
+                        q.startAyah
+                      );
+                      setSelectedIndex(pIdx);
+                      if (isPlaying) {
+                        playVerseAtIndex(pIdx);
+                      }
+                      if (typeof document !== "undefined") {
+                        document
+                          .getElementById(
+                            `surah-${q.startSurahId}-ayah-${q.startAyah}`
+                          )
+                          ?.scrollIntoView({
+                            behavior: "smooth",
+                            block: "center",
+                          });
+                      }
+                    }}
+                    className="flex flex-col items-start rounded-xl border border-white/15 bg-black/20 px-3 py-2 text-right transition hover:border-gold hover:bg-black/35"
+                  >
+                    <span className="text-[11px] font-extrabold text-gold">
+                      ۞ {q.labelAr}
+                    </span>
+                    <span className="mt-0.5 text-xs font-bold text-white">
+                      سورة {q.startSurahName} • آية{" "}
+                      {toArabicDigits(q.startAyah)}
+                    </span>
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* Bismillah Banner if Surah starts at verse 1 (except Al-Fatihah & At-Tawbah) */}
-            {seg.showBismillah && (
-              <div className="rounded-2xl border border-gold/25 bg-card py-4 text-center shadow-sm">
-                <p className="font-quran text-2xl font-bold text-primary sm:text-3xl">
-                  بِسۡمِ ٱللَّهِ ٱلرَّحۡمَـٰنِ ٱلرَّحِيمِ
-                </p>
-              </div>
-            )}
-
-            {/* MODE 1: Continuous Mushaf View */}
-            {prefs.viewMode === "mushaf" ? (
-              <article className="rounded-3xl border-2 border-gold/30 bg-card p-5 shadow-soft sm:p-8 md:p-10">
+            {/* Surahs within this Hizb */}
+            <div className="space-y-6">
+              {hizb.segments.map((seg) => (
                 <div
-                  className={cn(
-                    "quran-verse-text text-justify text-foreground",
-                    FONT_SIZE_CLASSES[prefs.fontSizeLevel]
-                  )}
+                  key={`${juz.id}-hizb-${hizb.id}-surah-${seg.surahId}-${seg.startAyah}`}
+                  className="space-y-4"
                 >
-                  {seg.verses.map((verse) => {
-                    const pIdx = findPlaylistIndex(seg.surahId, verse.id);
-                    const isSelected = selectedIndex === pIdx;
-                    const isCurrentlyPlaying = isPlaying && playingIndex === pIdx;
-                    const isSavedPos =
-                      lastRead?.surahId === seg.surahId &&
-                      lastRead?.ayahNumber === verse.id;
-
-                    return (
-                      <span
-                        key={`${seg.surahId}:${verse.id}`}
-                        id={`surah-${seg.surahId}-ayah-${verse.id}`}
-                        onClick={() => setSelectedIndex(pIdx)}
-                        className={cn(
-                          "inline cursor-pointer rounded-xl px-1.5 py-0.5 transition-colors",
-                          isCurrentlyPlaying
-                            ? "bg-primary/20 text-primary ring-1 ring-primary/40"
-                            : isSelected
-                            ? "bg-gold-muted/70 text-foreground"
-                            : isSavedPos
-                            ? "underline decoration-gold decoration-2 underline-offset-8"
-                            : "hover:bg-muted/70"
-                        )}
-                      >
-                        <span>{verse.text} </span>
-                        <span
-                          className="mx-1 inline-flex select-none items-center justify-center font-quran text-[0.75em] font-bold text-gold"
-                          title={`سورة ${seg.surahName} - الآية ${verse.id}`}
-                        >
-                          ﴿{toArabicDigits(verse.id)}﴾
-                        </span>{" "}
+                  {/* Surah Segment Header Banner */}
+                  <div className="flex flex-col items-center justify-between gap-2 rounded-2xl border border-gold/35 bg-gradient-to-l from-primary/10 via-gold/10 to-primary/10 px-4 py-3.5 sm:flex-row sm:px-6">
+                    <div className="flex items-center gap-2.5">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-xs font-extrabold text-primary-foreground">
+                        {toArabicDigits(seg.surahId)}
                       </span>
-                    );
-                  })}
-                </div>
-              </article>
-            ) : (
-              /* MODE 2: Verse-by-Verse Cards */
-              <div className="space-y-3.5">
-                {seg.verses.map((verse) => {
-                  const pIdx = findPlaylistIndex(seg.surahId, verse.id);
-                  const isCurrentlyPlaying = isPlaying && playingIndex === pIdx;
-                  const isSavedPos =
-                    lastRead?.surahId === seg.surahId &&
-                    lastRead?.ayahNumber === verse.id;
-                  const bookmarked = isBookmarked(seg.surahId, verse.id);
-                  const copyKey = `${seg.surahId}:${verse.id}`;
-
-                  return (
-                    <article
-                      key={copyKey}
-                      id={`surah-${seg.surahId}-ayah-${verse.id}`}
-                      className={cn(
-                        "scroll-mt-28 rounded-3xl border p-4 transition-all sm:p-6",
-                        isCurrentlyPlaying
-                          ? "border-primary bg-primary/5 shadow-md"
-                          : isSavedPos
-                          ? "border-gold bg-gold-muted/20"
-                          : "border-border bg-card shadow-soft"
-                      )}
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-3">
-                        <div className="flex items-center gap-2">
-                          <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-xs font-extrabold text-primary">
-                            {toArabicDigits(verse.id)}
-                          </span>
-                          <span className="text-xs font-semibold text-muted-foreground">
-                            سورة {seg.surahName} • الآية {toArabicDigits(verse.id)}
-                          </span>
-                          {isSavedPos && (
-                            <span className="rounded-full bg-gold px-2.5 py-0.5 text-[10px] font-bold text-emerald-950">
-                              آخر موضع قراءة
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => playVerseAtIndex(pIdx)}
-                            className="inline-flex items-center gap-1 rounded-xl bg-primary/10 px-2.5 py-1.5 text-xs font-bold text-primary hover:bg-primary hover:text-primary-foreground"
-                          >
-                            <Play className="h-3.5 w-3.5" />
-                            <span>استماع</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleSaveLastRead(
-                                seg.surahId,
-                                seg.surahName,
-                                verse.id
-                              )
-                            }
-                            className="inline-flex items-center gap-1 rounded-xl border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
-                          >
-                            <BookOpen className="h-3.5 w-3.5" />
-                            <span>حفظ الموضع</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleToggleBookmark(
-                                seg.surahId,
-                                seg.surahName,
-                                verse.id,
-                                verse.text
-                              )
-                            }
-                            className={cn(
-                              "inline-flex items-center gap-1 rounded-xl border px-2.5 py-1.5 text-xs font-medium",
-                              bookmarked
-                                ? "border-gold bg-gold-muted text-gold"
-                                : "border-border text-muted-foreground hover:bg-muted hover:text-foreground"
-                            )}
-                          >
-                            <Bookmark className="h-3.5 w-3.5" />
-                            <span>{bookmarked ? "محفوظة" : "مرجعية"}</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleCopyAyah(
-                                seg.surahId,
-                                seg.surahName,
-                                verse.id,
-                                verse.text
-                              )
-                            }
-                            className="inline-flex items-center gap-1 rounded-xl border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
-                          >
-                            {copiedKey === copyKey ? (
-                              <Check className="h-3.5 w-3.5 text-emerald-600" />
-                            ) : (
-                              <Copy className="h-3.5 w-3.5" />
-                            )}
-                            <span>نسخ</span>
-                          </button>
-                        </div>
+                      <div>
+                        <h3 className="font-quran text-xl font-bold text-foreground sm:text-2xl">
+                          سُورَةُ {seg.surahName}
+                        </h3>
+                        <p className="text-xs text-muted-foreground">
+                          {seg.surahTypeAr} • الآيات في {hizb.nameAr}: من{" "}
+                          {toArabicDigits(seg.startAyah)} إلى{" "}
+                          {toArabicDigits(seg.endAyah)} (من أصل{" "}
+                          {toArabicDigits(seg.totalSurahVerses)} آية)
+                        </p>
                       </div>
+                    </div>
 
-                      <p
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          playVerseAtIndex(
+                            findPlaylistIndex(seg.surahId, seg.startAyah)
+                          )
+                        }
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground transition hover:bg-primary/90"
+                      >
+                        <Play className="h-3 w-3 fill-current" />
+                        <span>تلاوة من هذا الموضع</span>
+                      </button>
+
+                      <Link
+                        href={`/quran/${seg.surahId}`}
+                        className="inline-flex items-center gap-1 rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-bold text-primary transition hover:border-primary"
+                      >
+                        <span>السورة كاملة</span>
+                        <ChevronLeft className="h-3.5 w-3.5" />
+                      </Link>
+                    </div>
+                  </div>
+
+                  {/* Bismillah Banner if Surah starts at verse 1 (except Al-Fatihah & At-Tawbah) */}
+                  {seg.showBismillah && (
+                    <div className="rounded-2xl border border-gold/25 bg-card py-4 text-center shadow-sm">
+                      <p className="font-quran text-2xl font-bold text-primary sm:text-3xl">
+                        بِسۡمِ ٱللَّهِ ٱلرَّحۡمَـٰنِ ٱلرَّحِيمِ
+                      </p>
+                    </div>
+                  )}
+
+                  {/* MODE 1: Continuous Mushaf View */}
+                  {prefs.viewMode === "mushaf" ? (
+                    <article className="rounded-3xl border-2 border-gold/30 bg-card p-5 shadow-soft sm:p-8 md:p-10">
+                      <div
                         className={cn(
-                          "quran-verse-text mt-4 text-right text-foreground",
+                          "quran-verse-text text-justify text-foreground",
                           FONT_SIZE_CLASSES[prefs.fontSizeLevel]
                         )}
                       >
-                        {verse.text}{" "}
-                        <span className="font-quran text-[0.75em] text-gold">
-                          ﴿{toArabicDigits(verse.id)}﴾
-                        </span>
-                      </p>
+                        {seg.verses.map((verse) => {
+                          const pIdx = findPlaylistIndex(seg.surahId, verse.id);
+                          const isSelected = selectedIndex === pIdx;
+                          const isCurrentlyPlaying =
+                            isPlaying && playingIndex === pIdx;
+                          const isSavedPos =
+                            lastRead?.surahId === seg.surahId &&
+                            lastRead?.ayahNumber === verse.id;
+                          const qInfo = quarterByVerseKey.get(
+                            `${seg.surahId}:${verse.id}`
+                          );
+
+                          return (
+                            <React.Fragment key={`${seg.surahId}:${verse.id}`}>
+                              {qInfo && (
+                                <span
+                                  className="mx-1.5 my-1 inline-flex select-none items-center gap-1 rounded-full border border-gold/50 bg-gold/15 px-2.5 py-0.5 font-sans text-xs font-extrabold text-gold align-middle"
+                                  title={`${qInfo.quarter.labelAr} — ${qInfo.hizb.nameAr}`}
+                                >
+                                  <span>۞</span>
+                                  <span>
+                                    {qInfo.quarter.shortLabelAr} ({qInfo.hizb.nameAr})
+                                  </span>
+                                </span>
+                              )}
+                              <span
+                                id={`surah-${seg.surahId}-ayah-${verse.id}`}
+                                onClick={() => setSelectedIndex(pIdx)}
+                                className={cn(
+                                  "inline cursor-pointer rounded-xl px-1.5 py-0.5 transition-colors",
+                                  isCurrentlyPlaying
+                                    ? "bg-primary/20 text-primary ring-1 ring-primary/40"
+                                    : isSelected
+                                    ? "bg-gold-muted/70 text-foreground"
+                                    : isSavedPos
+                                    ? "underline decoration-gold decoration-2 underline-offset-8"
+                                    : "hover:bg-muted/70"
+                                )}
+                              >
+                                <span>{verse.text} </span>
+                                <span
+                                  className="mx-1 inline-flex select-none items-center justify-center font-quran text-[0.75em] font-bold text-gold"
+                                  title={`سورة ${seg.surahName} - الآية ${verse.id}`}
+                                >
+                                  ﴿{toArabicDigits(verse.id)}﴾
+                                </span>{" "}
+                              </span>
+                            </React.Fragment>
+                          );
+                        })}
+                      </div>
                     </article>
-                  );
-                })}
-              </div>
-            )}
+                  ) : (
+                    /* MODE 2: Verse-by-Verse Cards */
+                    <div className="space-y-3.5">
+                      {seg.verses.map((verse) => {
+                        const pIdx = findPlaylistIndex(seg.surahId, verse.id);
+                        const isCurrentlyPlaying =
+                          isPlaying && playingIndex === pIdx;
+                        const isSavedPos =
+                          lastRead?.surahId === seg.surahId &&
+                          lastRead?.ayahNumber === verse.id;
+                        const bookmarked = isBookmarked(seg.surahId, verse.id);
+                        const copyKey = `${seg.surahId}:${verse.id}`;
+                        const qInfo = quarterByVerseKey.get(copyKey);
+
+                        return (
+                          <article
+                            key={copyKey}
+                            id={`surah-${seg.surahId}-ayah-${verse.id}`}
+                            className={cn(
+                              "scroll-mt-28 rounded-3xl border p-4 transition-all sm:p-6",
+                              isCurrentlyPlaying
+                                ? "border-primary bg-primary/5 shadow-md"
+                                : isSavedPos
+                                ? "border-gold bg-gold-muted/20"
+                                : qInfo
+                                ? "border-gold/50 bg-card shadow-soft"
+                                : "border-border bg-card shadow-soft"
+                            )}
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-3">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-xs font-extrabold text-primary">
+                                  {toArabicDigits(verse.id)}
+                                </span>
+                                <span className="text-xs font-semibold text-muted-foreground">
+                                  سورة {seg.surahName} • الآية{" "}
+                                  {toArabicDigits(verse.id)} • {hizb.nameAr}
+                                </span>
+                                {qInfo && (
+                                  <span className="rounded-full border border-gold/40 bg-gold/15 px-2.5 py-0.5 text-[11px] font-extrabold text-gold">
+                                    ۞ {qInfo.quarter.labelAr}
+                                  </span>
+                                )}
+                                {isSavedPos && (
+                                  <span className="rounded-full bg-gold px-2.5 py-0.5 text-[10px] font-bold text-emerald-950">
+                                    آخر موضع قراءة
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => playVerseAtIndex(pIdx)}
+                                  className="inline-flex items-center gap-1 rounded-xl bg-primary/10 px-2.5 py-1.5 text-xs font-bold text-primary hover:bg-primary hover:text-primary-foreground"
+                                >
+                                  <Play className="h-3.5 w-3.5" />
+                                  <span>استماع</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleSaveLastRead(
+                                      seg.surahId,
+                                      seg.surahName,
+                                      verse.id
+                                    )
+                                  }
+                                  className="inline-flex items-center gap-1 rounded-xl border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+                                >
+                                  <BookOpen className="h-3.5 w-3.5" />
+                                  <span>حفظ الموضع</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleToggleBookmark(
+                                      seg.surahId,
+                                      seg.surahName,
+                                      verse.id,
+                                      verse.text
+                                    )
+                                  }
+                                  className={cn(
+                                    "inline-flex items-center gap-1 rounded-xl border px-2.5 py-1.5 text-xs font-medium",
+                                    bookmarked
+                                      ? "border-gold bg-gold-muted text-gold"
+                                      : "border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+                                  )}
+                                >
+                                  <Bookmark className="h-3.5 w-3.5" />
+                                  <span>{bookmarked ? "محفوظة" : "مرجعية"}</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleCopyAyah(
+                                      seg.surahId,
+                                      seg.surahName,
+                                      verse.id,
+                                      verse.text
+                                    )
+                                  }
+                                  className="inline-flex items-center gap-1 rounded-xl border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+                                >
+                                  {copiedKey === copyKey ? (
+                                    <Check className="h-3.5 w-3.5 text-emerald-600" />
+                                  ) : (
+                                    <Copy className="h-3.5 w-3.5" />
+                                  )}
+                                  <span>نسخ</span>
+                                </button>
+                              </div>
+                            </div>
+
+                            <p
+                              className={cn(
+                                "quran-verse-text mt-4 text-right text-foreground",
+                                FONT_SIZE_CLASSES[prefs.fontSizeLevel]
+                              )}
+                            >
+                              {verse.text}{" "}
+                              <span className="font-quran text-[0.75em] text-gold">
+                                ﴿{toArabicDigits(verse.id)}﴾
+                              </span>
+                            </p>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </section>
         ))}
       </div>

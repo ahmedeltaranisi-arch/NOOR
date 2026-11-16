@@ -211,9 +211,49 @@ export interface JuzSurahSegment {
   verses: Ayah[];
 }
 
+export interface HizbQuarterMeta {
+  id: number; // 1..240 across the entire Holy Quran
+  hizbId: number; // 1..60
+  juzId: number; // 1..30
+  quarterInHizb: 1 | 2 | 3 | 4;
+  quarterInJuz: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+  labelAr: string;
+  shortLabelAr: string;
+  startSurahId: number;
+  startSurahName: string;
+  startAyah: number;
+  endSurahId: number;
+  endSurahName: string;
+  endAyah: number;
+  totalVerses: number;
+  openingSnippet: string;
+}
+
+export interface HizbMeta {
+  id: number; // 1..60 across the entire Holy Quran
+  juzId: number; // 1..30
+  orderInJuz: 1 | 2; // 1 = الحزب الأول من الجزء, 2 = الحزب الثاني من الجزء
+  nameAr: string; // "الحزب الأول" .. "الحزب الستون"
+  orderInJuzLabelAr: string; // "الحزب الأول من الجزء الأول", etc.
+  titleAr: string; // Opening words of the Hizb
+  startSurahId: number;
+  startSurahName: string;
+  startAyah: number;
+  endSurahId: number;
+  endSurahName: string;
+  endAyah: number;
+  totalVerses: number;
+  quarters: HizbQuarterMeta[];
+}
+
+export interface HizbDetail extends HizbMeta {
+  segments: JuzSurahSegment[];
+}
+
 export interface JuzDetail extends JuzMeta {
   totalVersesInJuz: number;
   segments: JuzSurahSegment[];
+  hizbs: [HizbDetail, HizbDetail];
 }
 
 export interface QuranSearchResult {

@@ -34,7 +34,7 @@ import {
   TOTAL_QURAN_VERSES_COUNT,
   TOTAL_TAFSIR_BOOKS_COUNT,
 } from "@/lib/tafsir/meta";
-import { QURAN_JUZ_META } from "@/lib/quran/juz";
+import { QURAN_JUZ_META, getHizbsByJuzId } from "@/lib/quran/juz";
 import { toArabicDigits } from "@/lib/utils";
 
 const FEATURED_TAFSIR_SURAHS = [
@@ -161,13 +161,13 @@ export default function HomePage() {
           <div>
             <div className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/15 px-3 py-1 text-xs font-extrabold text-gold">
               <Layers className="h-3.5 w-3.5" />
-              <span>الأجزاء الثلاثون • قراءة وتلاوة بأصوات ١١ قارئًا</span>
+              <span>الأجزاء الثلاثون • ٦٠ حزبًا و٢٤٠ ربعًا • قراءة وتلاوة بأصوات ١١ قارئًا</span>
             </div>
             <h2 className="mt-2 text-xl font-extrabold text-foreground sm:text-2xl">
-              أجزاء القرآن الكريم (٣٠ جزءًا)
+              أجزاء القرآن الكريم (٣٠ جزءًا • ٦٠ حزبًا)
             </h2>
             <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-              اقرأ واستمع لأي جزء من الأجزاء الثلاثين بأصوات كبار الشيوخ (عبد الباسط، المنشاوي، الحصري، مصطفى إسماعيل، المعيقلي، السديس، العفاسي، الدوسري، العجمي، فارس عباد، ناصر القطامي)
+              اقرأ واستمع لأي جزء أو حزب من الأجزاء الثلاثين والأحزاب الستين بأصوات كبار الشيوخ (عبد الباسط، المنشاوي، الحصري، مصطفى إسماعيل، المعيقلي، السديس، العفاسي، الدوسري، العجمي، فارس عباد، ناصر القطامي)
             </p>
           </div>
 
@@ -176,39 +176,58 @@ export default function HomePage() {
             className="inline-flex items-center justify-center gap-1.5 self-start rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground transition hover:bg-primary/90 sm:self-center"
           >
             <BookOpen className="h-4 w-4" />
-            <span>عرض تفاصيل الأجزاء الـ ٣٠</span>
+            <span>عرض تفاصيل الأجزاء الـ ٣٠ والأحزاب الـ ٦٠</span>
             <ChevronLeft className="h-3.5 w-3.5" />
           </Link>
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6">
-          {QURAN_JUZ_META.map((juz) => (
-            <Link
-              key={juz.id}
-              href={`/quran/juz/${juz.id}`}
-              className="group flex flex-col justify-between rounded-2xl border border-border bg-background/70 p-3 transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:bg-card hover:shadow-sm"
-            >
-              <div className="flex items-center justify-between gap-1.5">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-gold/30 bg-gold/15 text-xs font-extrabold text-gold transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-                  {toArabicDigits(juz.id)}
-                </span>
-                <span className="text-[10px] font-semibold text-muted-foreground">
-                  ص {toArabicDigits(juz.pageStart)}
-                </span>
+          {QURAN_JUZ_META.map((juz) => {
+            const juzHizbs = getHizbsByJuzId(juz.id);
+            return (
+              <div
+                key={juz.id}
+                className="group flex flex-col justify-between rounded-2xl border border-border bg-background/70 p-3 transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:bg-card hover:shadow-sm"
+              >
+                <Link href={`/quran/juz/${juz.id}`} className="block">
+                  <div className="flex items-center justify-between gap-1.5">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-gold/30 bg-gold/15 text-xs font-extrabold text-gold transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                      {toArabicDigits(juz.id)}
+                    </span>
+                    <span className="text-[10px] font-semibold text-muted-foreground">
+                      ص {toArabicDigits(juz.pageStart)}
+                    </span>
+                  </div>
+                  <div className="mt-2">
+                    <h3 className="truncate font-serif text-sm font-bold text-foreground group-hover:text-primary sm:text-base">
+                      {juz.nameAr}
+                    </h3>
+                    <p className="mt-0.5 truncate text-[11px] font-medium text-gold">
+                      {juz.titleAr}
+                    </p>
+                    <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
+                      سورة {juz.startSurahName} ({toArabicDigits(juz.startAyah)})
+                    </p>
+                  </div>
+                </Link>
+
+                {juzHizbs && (
+                  <div className="mt-2 grid grid-cols-2 gap-1 border-t border-border/60 pt-2">
+                    {juzHizbs.map((h) => (
+                      <Link
+                        key={h.id}
+                        href={`/quran/juz/${juz.id}?hizb=${h.orderInJuz}`}
+                        className="rounded-lg border border-gold/30 bg-gold/10 px-1.5 py-1 text-center text-[10px] font-extrabold text-gold transition hover:bg-gold hover:text-emerald-950"
+                        title={`${h.nameAr} (${h.orderInJuzLabelAr})`}
+                      >
+                        حزب {toArabicDigits(h.id)}
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </div>
-              <div className="mt-2">
-                <h3 className="truncate font-serif text-sm font-bold text-foreground group-hover:text-primary sm:text-base">
-                  {juz.nameAr}
-                </h3>
-                <p className="mt-0.5 truncate text-[11px] font-medium text-gold">
-                  {juz.titleAr}
-                </p>
-                <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
-                  سورة {juz.startSurahName} ({toArabicDigits(juz.startAyah)})
-                </p>
-              </div>
-            </Link>
-          ))}
+            );
+          })}
         </div>
       </section>
 
