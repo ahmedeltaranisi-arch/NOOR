@@ -73,6 +73,14 @@ import {
   QuranBookmark,
 } from "@/types";
 
+/** Compact labels used inside the Hizb & Quarter map (clear at 320px width). */
+const QUARTER_MAP_LABELS: Record<1 | 2 | 3 | 4, string> = {
+  1: "بداية الحزب",
+  2: "ربع الحزب",
+  3: "نصف الحزب",
+  4: "٣ أرباع الحزب",
+};
+
 const FONT_SIZE_CLASSES: Record<1 | 2 | 3 | 4, string> = {
   1: "text-xl leading-[2.25]",
   2: "text-2xl leading-[2.35] sm:text-3xl sm:leading-[2.4]",
@@ -166,6 +174,83 @@ export function JuzReaderClient({
     }
     return map;
   }, [juz.hizbs]);
+
+  /** All 8 quarters of this Juz ordered from its first to its last verse. */
+  const allQuarters = useMemo(
+    () =>
+      juz.hizbs.flatMap((hizb) =>
+        hizb.quarters.map((quarter) => ({ quarter, hizb }))
+      ),
+    [juz.hizbs]
+  );
+
+  /** Live position: which Hizb & Quarter of the Juz is currently on screen. */
+  const [activeQuarterId, setActiveQuarterId] = useState<number>(
+    () => juz.hizbs[0].quarters[0].id
+  );
+
+  const activeQuarterEntry = useMemo(
+    () =>
+      allQuarters.find((entry) => entry.quarter.id === activeQuarterId) ??
+      allQuarters[0],
+    [allQuarters, activeQuarterId]
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let raf = 0;
+    const compute = () => {
+      raf = 0;
+      let current = allQuarters[0]?.quarter.id ?? 0;
+      let bestTop = Number.NEGATIVE_INFINITY;
+      for (const entry of allQuarters) {
+        const el = document.getElementById(
+          `surah-${entry.quarter.startSurahId}-ayah-${entry.quarter.startAyah}`
+        );
+        if (!el) continue;
+        const top = el.getBoundingClientRect().top;
+        if (top <= 176 && top > bestTop) {
+          bestTop = top;
+          current = entry.quarter.id;
+        }
+      }
+      setActiveQuarterId((prev) => (prev === current ? prev : current));
+    };
+    const onScroll = () => {
+      if (raf) return;
+      raf = window.requestAnimationFrame(compute);
+    };
+    const initial = window.setTimeout(compute, 140);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.clearTimeout(initial);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (raf) window.cancelAnimationFrame(raf);
+    };
+  }, [allQuarters, activeHizbFilter, prefs.viewMode]);
+
+  // Keep the ?hizb= query in sync with the selected reading mode (shareable link)
+  const skipHizbUrlSyncRef = useRef(true);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (skipHizbUrlSyncRef.current) {
+      skipHizbUrlSyncRef.current = false;
+      return;
+    }
+    const url = new URL(window.location.href);
+    if (activeHizbFilter === "all") {
+      url.searchParams.delete("hizb");
+    } else {
+      url.searchParams.set("hizb", String(activeHizbFilter));
+    }
+    const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+    const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    if (nextUrl !== currentUrl) {
+      window.history.replaceState(null, "", nextUrl);
+    }
+  }, [activeHizbFilter]);
 
   const audioMode: QuranAudioMode = prefs.audioMode || "gapless-ayah";
   const smartCrossTriggerEnabled = prefs.smartCrossTriggerEnabled !== false;
@@ -739,10 +824,21 @@ export function JuzReaderClient({
       return;
     }
 
-    if (curIdx < juzPlaylist.length - 1) {
+    // When reading a single Hizb, stop the recitation at the end of that Hizb
+    const stopIndex =
+      activeHizbFilter === "all" ? juzPlaylist.length - 1 : activeHizbLastIndex;
+
+    if (curIdx < stopIndex) {
       playVerseAtIndex(curIdx + 1, { usePreloadedStandby: true });
     } else {
       setIsPlaying(false);
+      if (activeHizbFilter !== "all") {
+        showToast(
+          `تمت تلاوة ${
+            juz.hizbs[activeHizbFilter - 1].nameAr
+          } من ${juz.nameAr} كاملة بحمد الله`
+        );
+      }
     }
   };
 
@@ -788,6 +884,35 @@ export function JuzReaderClient({
     );
     return found >= 0 ? found : 0;
   };
+
+  /** Last verse index of the Hizb being read (whole Juz when reading both). */
+  const activeHizbLastIndex = (() => {
+    if (activeHizbFilter === "all") return juzPlaylist.length - 1;
+    const hizb = juz.hizbs[activeHizbFilter - 1];
+    const found = juzPlaylist.findIndex(
+      (item) =>
+        item.surahId === hizb.endSurahId && item.ayahNumber === hizb.endAyah
+    );
+    return found >= 0 ? found : juzPlaylist.length - 1;
+  })();
+
+  /** Resolves the Hizb & Quarter a given verse index belongs to. */
+  const hizbQuarterForIndex = (verseIndex: number) => {
+    let resolved = allQuarters[0];
+    for (const entry of allQuarters) {
+      const startIdx = juzPlaylist.findIndex(
+        (item) =>
+          item.surahId === entry.quarter.startSurahId &&
+          item.ayahNumber === entry.quarter.startAyah
+      );
+      if (startIdx >= 0 && startIdx <= verseIndex) {
+        resolved = entry;
+      }
+    }
+    return resolved;
+  };
+
+  const selectedHizbEntry = hizbQuarterForIndex(selectedIndex);
 
   const handleSaveLastRead = (
     surahId: number,
@@ -969,13 +1094,13 @@ export function JuzReaderClient({
             </Link>
 
             {/* Quick Jump to Any of the 30 Juzs */}
-            <div className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-muted/40 px-2.5 py-1.5">
+            <div className="flex w-full min-w-0 items-center gap-1.5 rounded-xl border border-border bg-muted/40 px-2.5 py-1.5 sm:w-auto">
               <Layers className="h-3.5 w-3.5 shrink-0 text-primary" />
               <select
                 aria-label="الانتقال إلى جزء آخر"
                 value={juz.id}
                 onChange={(e) => router.push(`/quran/juz/${e.target.value}`)}
-                className="bg-transparent text-xs font-bold text-foreground focus:outline-none"
+                className="min-w-0 max-w-full flex-1 bg-transparent text-xs font-bold text-foreground focus:outline-none sm:flex-none"
               >
                 {allJuzs.map((item) => (
                   <option
@@ -990,7 +1115,7 @@ export function JuzReaderClient({
             </div>
 
             {/* Quick Jump to Any of the 60 Ahzab */}
-            <div className="inline-flex items-center gap-1.5 rounded-xl border border-gold/40 bg-gold/10 px-2.5 py-1.5">
+            <div className="flex w-full min-w-0 items-center gap-1.5 rounded-xl border border-gold/40 bg-gold/10 px-2.5 py-1.5 sm:w-auto">
               <BookOpen className="h-3.5 w-3.5 shrink-0 text-gold" />
               <select
                 aria-label="الانتقال إلى حزب من الأحزاب الستين"
@@ -1025,7 +1150,7 @@ export function JuzReaderClient({
                     );
                   }
                 }}
-                className="bg-transparent text-xs font-bold text-foreground focus:outline-none"
+                className="min-w-0 max-w-full flex-1 bg-transparent text-xs font-bold text-foreground focus:outline-none sm:flex-none"
               >
                 {QURAN_HIZB_META.map((hItem) => (
                   <option
@@ -1141,6 +1266,124 @@ export function JuzReaderClient({
                   </button>
                 );
               })}
+            </div>
+          </div>
+
+          {/* LIVE HIZB & QUARTER MAP (the 8 Quarters of this Juz) */}
+          <div className="mt-3.5 rounded-2xl border border-border bg-card/80 p-2.5 sm:p-3.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-foreground sm:text-xs">
+                <Sparkles className="h-3.5 w-3.5 shrink-0 text-gold" />
+                <span>خريطة أحزاب {juz.nameAr} وأرباعه الثمانية</span>
+              </div>
+              <div className="inline-flex max-w-full items-center gap-1 rounded-full border border-gold/40 bg-gold/10 px-2.5 py-0.5 text-[10px] font-extrabold text-gold sm:text-[11px]">
+                <span className="truncate">
+                  موقع القراءة الآن: {activeQuarterEntry.hizb.nameAr} —{" "}
+                  {activeQuarterEntry.quarter.shortLabelAr}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-2.5 space-y-1.5">
+              {juz.hizbs.map((h) => (
+                <div
+                  key={`hizb-map-${h.id}`}
+                  className="flex flex-col gap-1.5 rounded-xl border border-border/70 bg-background/60 p-1.5 sm:flex-row sm:items-center"
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveHizbFilter(h.orderInJuz);
+                      setSelectedIndex(
+                        findPlaylistIndex(h.startSurahId, h.startAyah)
+                      );
+                      if (typeof document !== "undefined") {
+                        window.setTimeout(() => {
+                          document
+                            .getElementById(`hizb-${h.id}`)
+                            ?.scrollIntoView({
+                              behavior: "smooth",
+                              block: "start",
+                            });
+                        }, 80);
+                      }
+                    }}
+                    title={`${h.nameAr} (${h.orderInJuzLabelAr}) — ${toArabicDigits(
+                      h.totalVerses
+                    )} آية`}
+                    className={cn(
+                      "flex shrink-0 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-extrabold transition sm:w-36 sm:text-[11px]",
+                      activeQuarterEntry.hizb.id === h.id
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-foreground hover:bg-primary/10 hover:text-primary"
+                    )}
+                  >
+                    <span className="truncate">
+                      {h.orderInJuz === 1 ? "الحزب الأول" : "الحزب الثاني"}
+                    </span>
+                    <span className="shrink-0 opacity-80">
+                      • {toArabicDigits(h.id)}/٦٠
+                    </span>
+                  </button>
+
+                  <div className="grid min-w-0 flex-1 grid-cols-2 gap-1 sm:grid-cols-4">
+                    {h.quarters.map((q) => {
+                      const isAct = q.id === activeQuarterId;
+                      return (
+                        <button
+                          key={`hizb-map-q-${q.id}`}
+                          type="button"
+                          onClick={() => {
+                            if (
+                              activeHizbFilter !== "all" &&
+                              activeHizbFilter !== h.orderInJuz
+                            ) {
+                              setActiveHizbFilter("all");
+                            }
+                            const pIdx = findPlaylistIndex(
+                              q.startSurahId,
+                              q.startAyah
+                            );
+                            setSelectedIndex(pIdx);
+                            if (isPlaying) {
+                              playVerseAtIndex(pIdx);
+                            }
+                            if (typeof document !== "undefined") {
+                              window.setTimeout(() => {
+                                document
+                                  .getElementById(
+                                    `surah-${q.startSurahId}-ayah-${q.startAyah}`
+                                  )
+                                  ?.scrollIntoView({
+                                    behavior: "smooth",
+                                    block: "center",
+                                  });
+                              }, 80);
+                            }
+                          }}
+                          title={`${q.labelAr} — من سورة ${q.startSurahName} (آية ${
+                            q.startAyah
+                          }) إلى سورة ${q.endSurahName} (آية ${q.endAyah})`}
+                          className={cn(
+                            "flex min-w-0 flex-col items-center justify-center rounded-lg border px-1.5 py-1 text-center transition",
+                            isAct
+                              ? "border-gold bg-gold/20 text-foreground shadow-sm"
+                              : "border-border/70 bg-card text-foreground hover:border-gold/60 hover:bg-gold/10"
+                          )}
+                        >
+                          <span className="text-[10px] font-extrabold text-gold">
+                            {isAct ? "۞ " : ""}
+                            {QUARTER_MAP_LABELS[q.quarterInHizb]}
+                          </span>
+                          <span className="w-full truncate text-[10px] font-bold">
+                            {q.startSurahName} ({toArabicDigits(q.startAyah)})
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -1661,6 +1904,10 @@ export function JuzReaderClient({
             <span className="shrink-0 rounded-xl bg-primary/15 px-3 py-1.5 text-xs font-extrabold text-primary">
               سورة {selectedRef.surahName} • آية {toArabicDigits(selectedRef.ayahNumber)}
             </span>
+            <span className="shrink-0 rounded-xl border border-gold/40 bg-gold/10 px-2.5 py-1.5 text-[11px] font-extrabold text-gold">
+              {selectedHizbEntry.hizb.nameAr} •{" "}
+              {selectedHizbEntry.quarter.shortLabelAr}
+            </span>
             <p className="quran-verse-text min-w-0 flex-1 py-0.5 text-base leading-[2.15] text-foreground sm:text-lg">
               ﴿
               {selectedRef.text.split(/\s+/).length > 10
@@ -1966,7 +2213,28 @@ export function JuzReaderClient({
 
                           return (
                             <React.Fragment key={`${seg.surahId}:${verse.id}`}>
-                              {qInfo && (
+                              {qInfo && qInfo.quarter.quarterInHizb !== 1 && (
+                                <div
+                                  role="separator"
+                                  aria-label={`${qInfo.quarter.labelAr} — ${qInfo.hizb.nameAr}`}
+                                  className="my-4 flex items-center justify-center gap-2 text-center"
+                                >
+                                  <span className="h-px min-w-3 flex-1 bg-gradient-to-l from-transparent via-gold/40 to-gold/60" />
+                                  <span className="inline-flex max-w-full flex-wrap items-center justify-center gap-1 rounded-full border border-gold/50 bg-gold/10 px-3 py-1 font-sans text-[11px] font-extrabold text-gold sm:text-xs">
+                                    <span>۞</span>
+                                    <span>{qInfo.quarter.labelAr}</span>
+                                    <span className="opacity-70">•</span>
+                                    <span>{qInfo.hizb.nameAr}</span>
+                                    <span className="opacity-70">•</span>
+                                    <span>
+                                      {qInfo.quarter.startSurahName}{" "}
+                                      {toArabicDigits(qInfo.quarter.startAyah)}
+                                    </span>
+                                  </span>
+                                  <span className="h-px min-w-3 flex-1 bg-gradient-to-r from-transparent via-gold/40 to-gold/60" />
+                                </div>
+                              )}
+                              {qInfo && qInfo.quarter.quarterInHizb === 1 && (
                                 <span
                                   className="mx-1.5 my-1 inline-flex select-none items-center gap-1 rounded-full border border-gold/50 bg-gold/15 px-2.5 py-0.5 font-sans text-xs font-extrabold text-gold align-middle"
                                   title={`${qInfo.quarter.labelAr} — ${qInfo.hizb.nameAr}`}

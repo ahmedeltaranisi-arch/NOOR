@@ -358,6 +358,48 @@ describe("4. التقويم الهجري والقرآن الكريم والأذ�
     expect(totalVersesAcross30Juzs).toBe(6236);
     expect(totalVersesAcross60Ahzab).toBe(6236);
 
+    // The 240 Quarters must be unique, ordered, contiguous and fully cover the Mushaf
+    expect(QURAN_HIZB_QUARTERS_META.map((q) => q.id)).toEqual(
+      Array.from({ length: 240 }, (_, i) => i + 1)
+    );
+    let totalVersesAcross240Quarters = 0;
+    for (let i = 0; i < QURAN_HIZB_QUARTERS_META.length; i++) {
+      const quarter = QURAN_HIZB_QUARTERS_META[i];
+      expect(quarter.hizbId).toBe(Math.floor(i / 4) + 1);
+      expect(quarter.juzId).toBe(Math.floor(i / 8) + 1);
+      expect(quarter.quarterInHizb).toBe((i % 4) + 1);
+      expect(quarter.quarterInJuz).toBe((i % 8) + 1);
+      expect(quarter.totalVerses).toBeGreaterThan(0);
+      expect(quarter.labelAr.length).toBeGreaterThan(3);
+      totalVersesAcross240Quarters += quarter.totalVerses;
+
+      // Each quarter ends exactly one verse before the next quarter begins
+      const next = QURAN_HIZB_QUARTERS_META[i + 1];
+      if (next) {
+        const endSurah = getSurahDetailById(quarter.endSurahId)!;
+        const isSurahLastVerse = quarter.endAyah === endSurah.verses.length;
+        if (isSurahLastVerse && quarter.endSurahId < 114) {
+          expect(next.startSurahId).toBe(quarter.endSurahId + 1);
+          expect(next.startAyah).toBe(1);
+        } else {
+          expect(next.startSurahId).toBe(quarter.endSurahId);
+          expect(next.startAyah).toBe(quarter.endAyah + 1);
+        }
+      }
+    }
+    expect(totalVersesAcross240Quarters).toBe(6236);
+
+    // Every Hizb of the 60 maps back to its correct Juz and to exactly 4 Quarters
+    for (let h = 1; h <= 60; h++) {
+      const hizbMeta = QURAN_HIZB_META[h - 1];
+      expect(hizbMeta.id).toBe(h);
+      expect(hizbMeta.juzId).toBe(Math.floor((h - 1) / 2) + 1);
+      expect(hizbMeta.orderInJuz).toBe(((h - 1) % 2) + 1);
+      expect(hizbMeta.quarters.length).toBe(4);
+      expect(hizbMeta.quarters.every((q) => q.hizbId === h)).toBe(true);
+      expect(getHizbDetailById(h)?.totalVerses).toBe(hizbMeta.totalVerses);
+    }
+
     // Verify all 11 requested Sheikhs are present for Juz & Surah recitation
     expect(QURAN_RECITERS.length).toBe(11);
     const expectedSheikhs = [

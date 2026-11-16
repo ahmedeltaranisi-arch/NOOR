@@ -866,7 +866,7 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
                               className="flex flex-col rounded-xl border border-gold/30 bg-gold/5 p-2.5 text-right transition hover:border-gold hover:bg-gold/15"
                             >
                               <span className="text-[11px] font-extrabold text-gold">
-                                ۞ {h.nameAr} (الحزب {toArabicDigits(h.id)})
+                                ۞ {h.nameAr} • الحزب {toArabicDigits(h.id)} من ٦٠
                               </span>
                               <span className="mt-0.5 truncate font-quran text-xs text-foreground">
                                 «{h.titleAr}»

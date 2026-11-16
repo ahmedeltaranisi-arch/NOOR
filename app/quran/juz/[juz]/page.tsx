@@ -7,6 +7,8 @@ import {
 } from "@/lib/quran";
 import { JuzReaderClient } from "@/components/quran/JuzReaderClient";
 
+export const dynamicParams = false;
+
 export function generateStaticParams() {
   return QURAN_JUZ_META.map((j) => ({
     juz: String(j.id),

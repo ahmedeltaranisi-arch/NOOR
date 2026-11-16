@@ -1,10 +1,20 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getSurahDetailById, getSurahMetaById } from "@/lib/quran";
+import {
+  getSurahDetailById,
+  getSurahMetaById,
+  SURAHS_META,
+} from "@/lib/quran";
 import { SurahReaderClient } from "@/components/quran/SurahReaderClient";
 
 interface SurahPageProps {
   params: Promise<{ surah: string }>;
+}
+
+export const dynamicParams = false;
+
+export function generateStaticParams() {
+  return SURAHS_META.map((surah) => ({ surah: String(surah.id) }));
 }
 
 export async function generateMetadata({ params }: SurahPageProps): Promise<Metadata> {

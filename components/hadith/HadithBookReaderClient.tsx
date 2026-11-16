@@ -294,13 +294,13 @@ export function HadithBookReaderClient({
             </Link>
 
             {/* Quick Jump to Any of the 17 Hadith Books */}
-            <div className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-muted/40 px-2.5 py-1.5">
+            <div className="flex w-full min-w-0 items-center gap-1.5 rounded-xl border border-border bg-muted/40 px-2.5 py-1.5 sm:w-auto">
               <Library className="h-3.5 w-3.5 shrink-0 text-primary" />
               <select
                 aria-label="الانتقال إلى كتاب آخر من كتب السنة"
                 value={bookMeta.slug}
                 onChange={(e) => router.push(`/hadith/${e.target.value}`)}
-                className="bg-transparent text-xs font-bold text-foreground focus:outline-none"
+                className="min-w-0 max-w-full flex-1 bg-transparent text-xs font-bold text-foreground focus:outline-none sm:flex-none"
               >
                 {HADITH_BOOKS_META.map((item) => (
                   <option

@@ -7,6 +7,8 @@ import {
   queryHadiths,
 } from "@/lib/hadith";
 
+export const dynamicParams = false;
+
 export function generateStaticParams() {
   return HADITH_BOOKS_META.map((b) => ({ book: b.slug }));
 }
