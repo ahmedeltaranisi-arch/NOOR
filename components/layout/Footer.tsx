@@ -1,6 +1,16 @@
 import React from "react";
 import Link from "next/link";
-import { ShieldCheck, BookOpen, Compass, Clock, Heart, Library, Moon, ScrollText } from "lucide-react";
+import {
+  ShieldCheck,
+  BookOpen,
+  Compass,
+  Clock,
+  Heart,
+  Layers,
+  Library,
+  Moon,
+  ScrollText,
+} from "lucide-react";
 
 export function Footer() {
   return (
@@ -25,7 +35,7 @@ export function Footer() {
               </div>
             </div>
             <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
-              رفيقك اليومي لمواقيت الصلاة الدقيقة في جميع محافظات مصر الـ 27 وفق الهيئة المصرية العامة للمساحة، مع اتجاه القبلة، القرآن الكريم كاملًا بالرسم العثماني وورد القراءة، وأذكار المسلم الموثقة.
+              رفيقك اليومي لمواقيت الصلاة الدقيقة في جميع محافظات مصر الـ 27 وفق الهيئة المصرية العامة للمساحة، مع اتجاه القبلة، القرآن الكريم كاملًا بالرسم العثماني مقسمًا إلى ٣٠ جزءًا و٦٠ حزبًا و٢٤٠ ربعًا، وموسوعتي الحديث والتفسير، ورمضان، وأذكار المسلم الموثقة.
             </p>
             <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary">
               <ShieldCheck className="h-4 w-4 shrink-0" />
@@ -59,6 +69,12 @@ export function Footer() {
                 <Link href="/quran" className="inline-flex items-center gap-1.5 hover:text-primary">
                   <BookOpen className="h-3.5 w-3.5" />
                   <span>القرآن الكريم وورد القراءة</span>
+                </Link>
+              </li>
+              <li>
+                <Link href="/quran?tab=hizb" className="inline-flex items-center gap-1.5 hover:text-primary">
+                  <Layers className="h-3.5 w-3.5" />
+                  <span>الأحزاب الستون وأرباع المصحف (٢٤٠ ربعًا)</span>
                 </Link>
               </li>
               <li>

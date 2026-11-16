@@ -224,6 +224,21 @@ export function ElectronicTasbeehClient() {
         </div>
       )}
 
+      {/* Page Header */}
+      <div className="rounded-3xl border border-gold/30 bg-card p-4 shadow-soft sm:p-5">
+        <div className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/15 px-3 py-1 text-xs font-extrabold text-gold">
+          <Sparkles className="h-3.5 w-3.5" />
+          <span>فَاذْكُرُونِي أَذْكُرْكُمْ</span>
+        </div>
+        <h1 className="mt-2 font-serif text-2xl font-extrabold text-foreground sm:text-3xl">
+          المسبحة الإلكترونية
+        </h1>
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
+          عدّاد تسبيح مريح بيد واحدة مع حلقة تقدّم بصرية، دعم الاهتزاز، الأذكار
+          المأثورة، إضافة ذكر مخصص، وحفظ إحصائياتك اليومية والتراكمية على جهازك.
+        </p>
+      </div>
+
       {/* Main Grid: Ergonomic Tasbeeh Counter + Phrases & Daily Stats */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         {/* Left/Center: One-Handed Interactive Tasbeeh */}

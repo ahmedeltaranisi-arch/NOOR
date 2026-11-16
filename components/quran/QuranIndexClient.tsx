@@ -11,6 +11,7 @@ import {
   Flame,
   Layers,
   Loader2,
+  ListOrdered,
   Plus,
   Search,
   Sparkles,
@@ -47,6 +48,13 @@ import {
   WirdUnit,
 } from "@/types";
 
+const QUARTER_LABELS: Record<1 | 2 | 3 | 4, string> = {
+  1: "بداية الحزب",
+  2: "ربع الحزب",
+  3: "نصف الحزب",
+  4: "٣ أرباع الحزب",
+};
+
 const UNIT_LABELS: Record<WirdUnit, string> = {
   pages: "صفحة",
   ayahs: "آية",
@@ -56,10 +64,11 @@ const UNIT_LABELS: Record<WirdUnit, string> = {
 export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [juzSearchQuery, setJuzSearchQuery] = useState("");
+  const [hizbSearchQuery, setHizbSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<"all" | "meccan" | "medinan">("all");
-  const [activeTab, setActiveTab] = useState<"surahs" | "juz" | "bookmarks" | "wird">(
-    "surahs"
-  );
+  const [activeTab, setActiveTab] = useState<
+    "surahs" | "juz" | "hizb" | "bookmarks" | "wird"
+  >("surahs");
 
   // Verse search results from API
   const [ayahResults, setAyahResults] = useState<QuranSearchResult[]>([]);
@@ -84,6 +93,8 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
       const tab = params.get("tab");
       if (tab === "juz" || window.location.hash === "#quran-juz") {
         setActiveTab("juz");
+      } else if (tab === "hizb" || window.location.hash === "#quran-ahzab") {
+        setActiveTab("hizb");
       } else if (tab === "wird" || window.location.hash === "#wird-settings") {
         setActiveTab("wird");
       } else if (tab === "bookmarks") {
@@ -106,6 +117,27 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
     };
   }, []);
 
+  // Keep the selected tab in the URL (?tab=juz / ?tab=hizb / ...) for sharing
+  const skipTabUrlSyncRef = React.useRef(true);
+  useEffect(() => {
+    if (skipTabUrlSyncRef.current) {
+      skipTabUrlSyncRef.current = false;
+      return;
+    }
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (activeTab === "surahs") {
+      url.searchParams.delete("tab");
+    } else {
+      url.searchParams.set("tab", activeTab);
+    }
+    const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+    const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    if (nextUrl !== currentUrl) {
+      window.history.replaceState(null, "", nextUrl);
+    }
+  }, [activeTab]);
+
   const handleSelectReciterForJuz = (reciterId: string) => {
     const updated = { ...prefs, reciterId };
     setPrefs(updated);
@@ -124,6 +156,31 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
         normalizeArabicText(j.endSurahName).includes(q)
     );
   }, [juzSearchQuery]);
+
+  // Filter the 60 Ahzab of the Holy Mushaf
+  const filteredHizbs = useMemo(() => {
+    const q = normalizeArabicText(hizbSearchQuery);
+    if (!q) return QURAN_HIZB_META;
+    return QURAN_HIZB_META.filter(
+      (h) =>
+        String(h.id) === hizbSearchQuery.trim() ||
+        normalizeArabicText(h.nameAr).includes(q) ||
+        normalizeArabicText(h.orderInJuzLabelAr).includes(q) ||
+        normalizeArabicText(h.titleAr).includes(q) ||
+        normalizeArabicText(h.startSurahName).includes(q) ||
+        normalizeArabicText(h.endSurahName).includes(q)
+    );
+  }, [hizbSearchQuery]);
+
+  const hizbsByJuzGroup = useMemo(() => {
+    const groups = new Map<number, typeof QURAN_HIZB_META>();
+    for (const h of filteredHizbs) {
+      const list = groups.get(h.juzId) ?? [];
+      list.push(h);
+      groups.set(h.juzId, list);
+    }
+    return Array.from(groups.entries()).sort((a, b) => a[0] - b[0]);
+  }, [filteredHizbs]);
 
   // Filter Surahs
   const filteredSurahs = useMemo(() => {
@@ -358,7 +415,7 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
         <div
           role="tablist"
           aria-label="أقسام القرآن الكريم"
-          className="grid w-full grid-cols-2 gap-1 rounded-2xl border border-border bg-card p-1.5 shadow-sm sm:inline-flex sm:w-auto"
+          className="grid w-full grid-cols-2 gap-1 rounded-2xl border border-border bg-card p-1.5 shadow-sm sm:inline-flex sm:w-auto sm:flex-wrap"
         >
           <button
             type="button"
@@ -401,6 +458,27 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
           <button
             type="button"
             role="tab"
+            aria-selected={activeTab === "hizb"}
+            onClick={() => setActiveTab("hizb")}
+            className={cn(
+              "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-2.5 py-2 text-xs font-bold transition sm:gap-2 sm:px-4 sm:text-sm",
+              activeTab === "hizb"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <ListOrdered className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+            <span className="sm:hidden">
+              الأحزاب ({toArabicDigits(60)})
+            </span>
+            <span className="hidden sm:inline">
+              الأحزاب الستون ({toArabicDigits(60)} حزبًا)
+            </span>
+          </button>
+
+          <button
+            type="button"
+            role="tab"
             aria-selected={activeTab === "bookmarks"}
             onClick={() => setActiveTab("bookmarks")}
             className={cn(
@@ -425,7 +503,7 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
             aria-selected={activeTab === "wird"}
             onClick={() => setActiveTab("wird")}
             className={cn(
-              "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-2.5 py-2 text-xs font-bold transition sm:gap-2 sm:px-4 sm:text-sm",
+              "col-span-2 inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-2.5 py-2 text-xs font-bold transition sm:col-span-1 sm:gap-2 sm:px-4 sm:text-sm",
               activeTab === "wird"
                 ? "bg-primary text-primary-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
@@ -727,6 +805,139 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
       )}
 
       {/* TAB 2: 30 Juzs Reading & Recitation Index */}
+      {/* TAB: The 60 Ahzab of the Holy Mushaf (& their 240 Quarters) */}
+      {activeTab === "hizb" && (
+        <div className="space-y-6">
+          <div className="rounded-3xl border border-gold/35 bg-card p-4 shadow-soft sm:p-6">
+            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+              <div>
+                <div className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/15 px-3 py-1 text-xs font-extrabold text-gold">
+                  <ListOrdered className="h-3.5 w-3.5" />
+                  <span>٦٠ حزبًا • ٢٤٠ ربعًا على امتداد الأجزاء الثلاثين</span>
+                </div>
+                <h2 className="mt-2 text-xl font-extrabold text-foreground sm:text-2xl">
+                  فهرس الأحزاب الستين للمصحف الشريف
+                </h2>
+                <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
+                  كل جزء من أجزاء المصحف مقسوم إلى حزبين، وكل حزب إلى أربعة أرباع
+                  (بداية الحزب • ربع الحزب • نصف الحزب • ثلاثة أرباع الحزب) كما في
+                  مصحف المدينة النبوية.
+                </p>
+              </div>
+
+              <div className="relative w-full sm:w-72">
+                <Search className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="search"
+                  value={hizbSearchQuery}
+                  onChange={(e) => setHizbSearchQuery(e.target.value)}
+                  placeholder="ابحث برقم الحزب أو السورة أو مطلع الحزب..."
+                  className="w-full rounded-xl border border-border bg-background py-2.5 pl-4 pr-10 text-xs font-semibold text-foreground focus:border-primary focus:outline-none sm:text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] font-bold text-muted-foreground">
+              <span className="rounded-lg border border-border bg-muted/40 px-2 py-1">
+                الترتيب: {toArabicDigits(filteredHizbs.length)} حزبًا
+              </span>
+              <Link
+                href="/quran?tab=juz"
+                className="rounded-lg border border-border bg-card px-2 py-1 text-primary hover:border-primary"
+              >
+                عرض الأجزاء الثلاثين
+              </Link>
+            </div>
+          </div>
+
+          {hizbsByJuzGroup.length === 0 && (
+            <div className="rounded-3xl border border-border bg-card p-8 text-center text-sm font-bold text-muted-foreground">
+              لا يوجد حزب مطابق لبحثك. جرّب رقم الحزب أو اسم السورة.
+            </div>
+          )}
+
+          <div className="space-y-5">
+            {hizbsByJuzGroup.map(([juzId, juzHizbs]) => (
+              <section key={`hizb-group-${juzId}`} className="space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-muted/40 px-3.5 py-2.5">
+                  <h3 className="text-sm font-extrabold text-foreground">
+                    الجزء {toArabicDigits(juzId)} من ٣٠ — حزبا هذا الجزء
+                  </h3>
+                  <Link
+                    href={`/quran/juz/${juzId}`}
+                    className="inline-flex items-center gap-1 text-xs font-extrabold text-primary hover:underline"
+                  >
+                    <span>قراءة الجزء كاملًا</span>
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </Link>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {juzHizbs.map((h) => (
+                    <div
+                      key={`hizb-card-${h.id}`}
+                      className="flex flex-col justify-between rounded-3xl border border-gold/30 bg-card p-4 shadow-soft transition-all hover:-translate-y-0.5 hover:border-gold hover:shadow-md"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="rounded-lg bg-primary px-2 py-0.5 text-[11px] font-extrabold text-primary-foreground">
+                              الحزب {toArabicDigits(h.id)} من ٦٠
+                            </span>
+                            <span className="rounded-lg border border-gold/40 bg-gold/15 px-2 py-0.5 text-[11px] font-bold text-gold">
+                              {h.orderInJuzLabelAr}
+                            </span>
+                          </div>
+                          <h4 className="mt-1.5 font-serif text-base font-extrabold text-foreground">
+                            {h.nameAr} — «{h.titleAr}»
+                          </h4>
+                          <p className="mt-1 text-[11px] font-semibold text-muted-foreground">
+                            {h.startSurahName} ({toArabicDigits(h.startAyah)}) ←{" "}
+                            {h.endSurahName} ({toArabicDigits(h.endAyah)}) •{" "}
+                            {toArabicDigits(h.totalVerses)} آية
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-2 gap-1.5">
+                        {h.quarters.map((q) => (
+                          <Link
+                            key={`hizb-q-${q.id}`}
+                            href={`/quran/juz/${juzId}?hizb=${h.orderInJuz}#surah-${q.startSurahId}-ayah-${q.startAyah}`}
+                            title={`${q.labelAr} — من سورة ${q.startSurahName} (آية ${q.startAyah}) إلى سورة ${q.endSurahName} (آية ${q.endAyah})`}
+                            className="flex flex-col rounded-xl border border-border/80 bg-background/80 px-2.5 py-1.5 text-right transition hover:border-gold hover:bg-gold/10"
+                          >
+                            <span className="text-[10px] font-extrabold text-gold">
+                              ۞ {QUARTER_LABELS[q.quarterInHizb]}
+                            </span>
+                            <span className="text-[11px] font-bold text-foreground">
+                              {q.startSurahName} ({toArabicDigits(q.startAyah)})
+                            </span>
+                          </Link>
+                        ))}
+                      </div>
+
+                      <div className="mt-3 flex items-center justify-between border-t border-border/60 pt-2.5">
+                        <span className="text-[10px] font-semibold text-muted-foreground">
+                          ٤ أرباع • ۞ {toArabicDigits(h.quarters.length)} موضع تحزيب
+                        </span>
+                        <Link
+                          href={`/quran/juz/${juzId}?hizb=${h.orderInJuz}`}
+                          className="inline-flex items-center gap-1 rounded-xl bg-primary px-2.5 py-1.5 text-[11px] font-extrabold text-primary-foreground transition hover:bg-primary/90"
+                        >
+                          <span>قراءة {h.nameAr}</span>
+                          <ChevronLeft className="h-3 w-3" />
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        </div>
+      )}
+
       {activeTab === "juz" && (
         <div className="space-y-6">
           <div className="space-y-4 rounded-3xl border border-gold/35 bg-card p-4 shadow-soft sm:p-6">

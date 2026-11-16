@@ -15,6 +15,7 @@ import {
   Copy,
   Layers,
   LayoutList,
+  ListOrdered,
   Mic,
   Pause,
   Play,
@@ -1091,6 +1092,14 @@ export function JuzReaderClient({
             >
               <ChevronRight className="h-4 w-4" />
               <span>فهرس أجزاء القرآن (٣٠ جزءًا)</span>
+            </Link>
+
+            <Link
+              href="/quran?tab=hizb"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-gold/40 bg-gold/10 px-3 py-2 text-xs font-extrabold text-gold hover:border-gold hover:bg-gold/20 sm:px-3.5"
+            >
+              <ListOrdered className="h-4 w-4" />
+              <span>فهرس الأحزاب (٦٠)</span>
             </Link>
 
             {/* Quick Jump to Any of the 30 Juzs */}
@@ -2409,6 +2418,57 @@ export function JuzReaderClient({
                 </div>
               ))}
             </div>
+
+            {/* Previous & Next Hizb Navigation (across the 60 Ahzab) */}
+            {(() => {
+              const prevHizb = QURAN_HIZB_META[hizb.id - 2];
+              const nextHizb = QURAN_HIZB_META[hizb.id];
+              return (
+                <div className="flex flex-col items-center justify-between gap-2 rounded-2xl border border-gold/30 bg-background/60 p-2.5 sm:flex-row sm:p-3">
+                  {prevHizb ? (
+                    <Link
+                      href={`/quran/juz/${prevHizb.juzId}?hizb=${prevHizb.orderInJuz}`}
+                      className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-[11px] font-bold text-foreground transition hover:border-gold hover:text-gold sm:w-auto sm:text-xs"
+                    >
+                      <ChevronRight className="h-3.5 w-3.5" />
+                      <span>
+                        الحزب السابق: {toArabicDigits(prevHizb.id)} —{" "}
+                        {prevHizb.nameAr}
+                      </span>
+                    </Link>
+                  ) : (
+                    <span className="hidden text-[11px] font-semibold text-muted-foreground sm:block">
+                      بداية المصحف الشريف
+                    </span>
+                  )}
+
+                  <span className="order-first text-[11px] font-extrabold text-gold sm:order-none">
+                    الحزب {toArabicDigits(hizb.id)} من ٦٠ • ٤ أرباع
+                  </span>
+
+                  {nextHizb ? (
+                    <Link
+                      href={`/quran/juz/${nextHizb.juzId}?hizb=${nextHizb.orderInJuz}`}
+                      className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-[11px] font-bold text-primary-foreground transition hover:bg-primary/90 sm:w-auto sm:text-xs"
+                    >
+                      <span>
+                        الحزب التالي: {toArabicDigits(nextHizb.id)} —{" "}
+                        {nextHizb.nameAr}
+                      </span>
+                      <ChevronLeft className="h-3.5 w-3.5" />
+                    </Link>
+                  ) : (
+                    <Link
+                      href="/quran?tab=hizb"
+                      className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-gold px-3 py-2 text-[11px] font-extrabold text-emerald-950 transition hover:bg-gold/90 sm:w-auto sm:text-xs"
+                    >
+                      <span>اكتملت الأحزاب الستون — فهرس الأحزاب</span>
+                      <ChevronLeft className="h-3.5 w-3.5" />
+                    </Link>
+                  )}
+                </div>
+              );
+            })()}
           </section>
         ))}
       </div>

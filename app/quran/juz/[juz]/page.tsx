@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import {
   QURAN_JUZ_META,
+  getHizbsByJuzId,
   getJuzDetailById,
   getJuzMetaById,
 } from "@/lib/quran";
@@ -30,9 +31,14 @@ export async function generateMetadata({
     };
   }
 
+  const juzHizbs = getHizbsByJuzId(juzId);
+  const hizbNames = juzHizbs
+    ? `مقسمًا إلى ${juzHizbs[0].nameAr} (${juzHizbs[0].startSurahName} ${juzHizbs[0].startAyah}) و${juzHizbs[1].nameAr} (${juzHizbs[1].startSurahName} ${juzHizbs[1].startAyah}) وأرباعهما الثمانية`
+    : "";
+
   return {
-    title: `${meta.nameAr} من القرآن الكريم (${meta.titleAr}) — قراءة بالرسم العثماني`,
-    description: `قراءة ${meta.nameAr} من المصحف الشريف بالرسم العثماني الكامل (من سورة ${meta.startSurahName} آية ${meta.startAyah} إلى سورة ${meta.endSurahName} آية ${meta.endAyah} — الصفحات ${meta.pageStart} إلى ${meta.pageEnd}).`,
+    title: `${meta.nameAr} من القرآن الكريم (${meta.titleAr}) — أحزابه وأرباعه بالرسم العثماني`,
+    description: `قراءة ${meta.nameAr} من المصحف الشريف بالرسم العثماني الكامل ${hizbNames} (من سورة ${meta.startSurahName} آية ${meta.startAyah} إلى سورة ${meta.endSurahName} آية ${meta.endAyah} — الصفحات ${meta.pageStart} إلى ${meta.pageEnd}) مع التلاوة بأصوات 11 قارئًا.`,
   };
 }
 

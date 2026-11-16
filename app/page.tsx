@@ -8,6 +8,7 @@ import {
   HeartHandshake,
   Layers,
   Library,
+  ListOrdered,
   MapPin,
   Moon,
   ScrollText,
@@ -171,14 +172,24 @@ export default function HomePage() {
             </p>
           </div>
 
-          <Link
-            href="/quran?tab=juz"
-            className="inline-flex items-center justify-center gap-1.5 self-start rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground transition hover:bg-primary/90 sm:self-center"
-          >
-            <BookOpen className="h-4 w-4" />
-            <span>عرض تفاصيل الأجزاء الـ ٣٠ والأحزاب الـ ٦٠</span>
-            <ChevronLeft className="h-3.5 w-3.5" />
-          </Link>
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
+            <Link
+              href="/quran?tab=hizb"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-gold/50 bg-gold/15 px-4 py-2.5 text-xs font-extrabold text-gold transition hover:bg-gold hover:text-emerald-950"
+            >
+              <ListOrdered className="h-4 w-4" />
+              <span>فهرس الأحزاب الـ ٦٠ وأرباعها</span>
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Link>
+            <Link
+              href="/quran?tab=juz"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground transition hover:bg-primary/90"
+            >
+              <BookOpen className="h-4 w-4" />
+              <span>تفاصيل الأجزاء الـ ٣٠</span>
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Link>
+          </div>
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6">
