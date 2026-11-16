@@ -10,6 +10,8 @@ interface TafsirBookPageProps {
   params: Promise<{ book: string }>;
 }
 
+export const dynamicParams = false;
+
 export function generateStaticParams() {
   return TAFSIR_BOOKS_META.map((b) => ({ book: b.slug }));
 }
