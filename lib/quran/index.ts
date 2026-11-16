@@ -3,8 +3,13 @@ import { Ayah, QuranSearchResult, SurahDetail } from "@/types";
 import { SURAHS_META, getSurahMetaById } from "@/lib/quran/metadata";
 import {
   QURAN_JUZ_META,
+  QURAN_HIZB_META,
+  QURAN_HIZB_QUARTERS_META,
   getJuzMetaById,
   getJuzDetailById,
+  getHizbMetaById,
+  getHizbsByJuzId,
+  getHizbDetailById,
 } from "@/lib/quran/juz";
 import { normalizeArabicText } from "@/lib/utils";
 
@@ -23,8 +28,13 @@ export {
   SURAHS_META,
   getSurahMetaById,
   QURAN_JUZ_META,
+  QURAN_HIZB_META,
+  QURAN_HIZB_QUARTERS_META,
   getJuzMetaById,
   getJuzDetailById,
+  getHizbMetaById,
+  getHizbsByJuzId,
+  getHizbDetailById,
 };
 
 export function getSurahDetailById(surahId: number): SurahDetail | undefined {

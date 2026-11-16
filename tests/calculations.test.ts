@@ -18,7 +18,10 @@ import {
   searchQuranVerses,
   SURAHS_META,
   QURAN_JUZ_META,
+  QURAN_HIZB_META,
+  QURAN_HIZB_QUARTERS_META,
   getJuzDetailById,
+  getHizbDetailById,
 } from "@/lib/quran";
 import { getHijriDateInfo, normalizeArabicText } from "@/lib/utils";
 import { ALLAH_NAMES, QURAN_RECITERS } from "@/data/daily-content";
@@ -313,17 +316,47 @@ describe("4. التقويم الهجري والقرآن الكريم والأذ�
 
     expect(normalizeArabicText("بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ")).toBe("بسم الله الرحمن");
 
-    // Verify all 30 Juzs cover all 6,236 verses accurately without gaps or duplicates
+    // Verify all 30 Juzs cover all 6,236 verses accurately without gaps or duplicates,
+    // and each Juz is divided into 2 Ahzab (60 Ahzab total) and 8 Quarters (240 Quarters total)
     expect(QURAN_JUZ_META.length).toBe(30);
+    expect(QURAN_HIZB_META.length).toBe(60);
+    expect(QURAN_HIZB_QUARTERS_META.length).toBe(240);
+
     let totalVersesAcross30Juzs = 0;
+    let totalVersesAcross60Ahzab = 0;
     for (let j = 1; j <= 30; j++) {
       const juzDetail = getJuzDetailById(j);
       expect(juzDetail).toBeDefined();
       expect(juzDetail!.segments.length).toBeGreaterThanOrEqual(1);
       expect(juzDetail!.totalVersesInJuz).toBeGreaterThan(100);
+      expect(juzDetail!.hizbs.length).toBe(2);
+
+      const [hizb1, hizb2] = juzDetail!.hizbs;
+      expect(hizb1.id).toBe((j - 1) * 2 + 1);
+      expect(hizb2.id).toBe((j - 1) * 2 + 2);
+      expect(hizb1.orderInJuz).toBe(1);
+      expect(hizb2.orderInJuz).toBe(2);
+      expect(hizb1.quarters.length).toBe(4);
+      expect(hizb2.quarters.length).toBe(4);
+      expect(hizb1.totalVerses + hizb2.totalVerses).toBe(
+        juzDetail!.totalVersesInJuz
+      );
+
+      for (const h of [hizb1, hizb2]) {
+        const segVersesSum = h.segments.reduce(
+          (sum, seg) => sum + seg.verses.length,
+          0
+        );
+        expect(segVersesSum).toBe(h.totalVerses);
+        const hDetail = getHizbDetailById(h.id);
+        expect(hDetail?.totalVerses).toBe(h.totalVerses);
+        totalVersesAcross60Ahzab += h.totalVerses;
+      }
+
       totalVersesAcross30Juzs += juzDetail!.totalVersesInJuz;
     }
     expect(totalVersesAcross30Juzs).toBe(6236);
+    expect(totalVersesAcross60Ahzab).toBe(6236);
 
     // Verify all 11 requested Sheikhs are present for Juz & Surah recitation
     expect(QURAN_RECITERS.length).toBe(11);

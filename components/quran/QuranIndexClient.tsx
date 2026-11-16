@@ -16,7 +16,11 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
-import { QURAN_JUZ_META } from "@/lib/quran/juz";
+import {
+  QURAN_JUZ_META,
+  QURAN_HIZB_META,
+  getHizbsByJuzId,
+} from "@/lib/quran/juz";
 import { QURAN_RECITERS } from "@/data/daily-content";
 import {
   DEFAULT_DAILY_WIRD,
@@ -632,64 +636,89 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {QURAN_JUZ_META.map((juz) => {
                 const isCompleted = completedJuzIds.includes(juz.id);
+                const juzHizbs = getHizbsByJuzId(juz.id);
                 return (
-                  <Link
+                  <div
                     key={juz.id}
-                    href={`/quran/juz/${juz.id}`}
                     className={cn(
-                      "group flex items-center justify-between gap-3 rounded-2xl border p-3.5 transition-all hover:-translate-y-0.5 hover:bg-card hover:shadow-md sm:p-4",
+                      "group flex flex-col justify-between gap-2.5 rounded-2xl border p-3.5 transition-all hover:-translate-y-0.5 hover:bg-card hover:shadow-md sm:p-4",
                       isCompleted
                         ? "border-emerald-600/40 bg-emerald-600/5 hover:border-emerald-600"
                         : "border-border bg-background/70 hover:border-primary/50"
                     )}
                   >
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div
-                        className={cn(
-                          "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border font-extrabold transition-colors",
-                          isCompleted
-                            ? "border-emerald-600/40 bg-emerald-600 text-white"
-                            : "border-gold/30 bg-gold/15 text-gold group-hover:bg-primary group-hover:text-primary-foreground"
-                        )}
-                      >
-                        {toArabicDigits(juz.id)}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <h3 className="truncate font-serif text-base font-bold text-foreground group-hover:text-primary sm:text-lg">
-                            {juz.nameAr}
-                          </h3>
-                          <span
-                            className={cn(
-                              "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold",
-                              isCompleted
-                                ? "bg-emerald-600/15 text-emerald-700 dark:text-emerald-300"
-                                : "bg-primary/10 text-primary"
-                            )}
-                          >
-                            {isCompleted ? "تم تسجيل القراءة بحمد الله" : "قراءة وتلاوة"}
-                          </span>
+                    <Link
+                      href={`/quran/juz/${juz.id}`}
+                      className="flex items-center justify-between gap-3"
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div
+                          className={cn(
+                            "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border font-extrabold transition-colors",
+                            isCompleted
+                              ? "border-emerald-600/40 bg-emerald-600 text-white"
+                              : "border-gold/30 bg-gold/15 text-gold group-hover:bg-primary group-hover:text-primary-foreground"
+                          )}
+                        >
+                          {toArabicDigits(juz.id)}
                         </div>
-                        <p className="mt-0.5 truncate text-xs font-semibold text-gold">
-                          «{juz.titleAr}»
-                        </p>
-                        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                          من {juz.startSurahName} ({toArabicDigits(juz.startAyah)}) إلى{" "}
-                          {juz.endSurahName} ({toArabicDigits(juz.endAyah)})
-                        </p>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <h3 className="truncate font-serif text-base font-bold text-foreground group-hover:text-primary sm:text-lg">
+                              {juz.nameAr}
+                            </h3>
+                            <span
+                              className={cn(
+                                "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold",
+                                isCompleted
+                                  ? "bg-emerald-600/15 text-emerald-700 dark:text-emerald-300"
+                                  : "bg-primary/10 text-primary"
+                              )}
+                            >
+                              {isCompleted ? "تم تسجيل القراءة بحمد الله" : "حزبان • ٨ أرباع"}
+                            </span>
+                          </div>
+                          <p className="mt-0.5 truncate text-xs font-semibold text-gold">
+                            «{juz.titleAr}»
+                          </p>
+                          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                            من {juz.startSurahName} ({toArabicDigits(juz.startAyah)}) إلى{" "}
+                            {juz.endSurahName} ({toArabicDigits(juz.endAyah)})
+                          </p>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="shrink-0 text-left text-xs text-muted-foreground">
-                      <div>
-                        ص {toArabicDigits(juz.pageStart)}–{toArabicDigits(juz.pageEnd)}
+                      <div className="shrink-0 text-left text-xs text-muted-foreground">
+                        <div>
+                          ص {toArabicDigits(juz.pageStart)}–{toArabicDigits(juz.pageEnd)}
+                        </div>
+                        <div className="mt-1 inline-flex items-center gap-0.5 text-[11px] font-bold text-primary">
+                          <span>فتح الجزء</span>
+                          <ChevronLeft className="h-3 w-3" />
+                        </div>
                       </div>
-                      <div className="mt-1 inline-flex items-center gap-0.5 text-[11px] font-bold text-primary">
-                        <span>فتح الجزء</span>
-                        <ChevronLeft className="h-3 w-3" />
+                    </Link>
+
+                    {juzHizbs && (
+                      <div className="grid grid-cols-2 gap-1.5 border-t border-border/60 pt-2.5">
+                        {juzHizbs.map((h) => (
+                          <Link
+                            key={h.id}
+                            href={`/quran/juz/${juz.id}?hizb=${h.orderInJuz}`}
+                            className="flex flex-col rounded-xl border border-border/80 bg-card/80 px-2.5 py-1.5 text-right transition hover:border-gold hover:bg-gold/10"
+                          >
+                            <span className="text-[10px] font-extrabold text-gold">
+                              ۞ {h.nameAr} (الحزب {toArabicDigits(h.id)})
+                            </span>
+                            <span className="mt-0.5 truncate text-[10px] font-semibold text-muted-foreground">
+                              {h.startSurahName} ({toArabicDigits(h.startAyah)}) ←{" "}
+                              {h.endSurahName} ({toArabicDigits(h.endAyah)})
+                            </span>
+                          </Link>
+                        ))}
                       </div>
-                    </div>
-                  </Link>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -758,10 +787,10 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
           <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
             {filteredJuzs.map((juz) => {
               const isCompleted = completedJuzIds.includes(juz.id);
+              const juzHizbs = getHizbsByJuzId(juz.id);
               return (
-                <Link
+                <div
                   key={juz.id}
-                  href={`/quran/juz/${juz.id}`}
                   className={cn(
                     "group flex flex-col justify-between rounded-3xl border bg-card p-4 shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-md sm:p-5",
                     isCompleted
@@ -771,7 +800,10 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
                 >
                   <div>
                     <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-3">
+                      <Link
+                        href={`/quran/juz/${juz.id}`}
+                        className="flex items-center gap-3"
+                      >
                         <div
                           className={cn(
                             "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border text-base font-extrabold transition-colors",
@@ -790,7 +822,7 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
                             مطلع الجزء: «{juz.titleAr}»
                           </p>
                         </div>
-                      </div>
+                      </Link>
 
                       <span
                         className={cn(
@@ -802,7 +834,7 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
                       >
                         {isCompleted
                           ? `تم تسجيل قراءة ${juz.nameAr} بحمد الله`
-                          : "قراءة وتلاوة"}
+                          : "حزبان • ٨ أرباع"}
                       </span>
                     </div>
 
@@ -820,6 +852,35 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
                         </strong>
                       </div>
                     </div>
+
+                    {juzHizbs && (
+                      <div className="mt-3 space-y-1.5">
+                        <p className="text-[11px] font-extrabold text-foreground">
+                          أحزاب {juz.nameAr} (اضغط لقراءة الحزب مباشرة):
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {juzHizbs.map((h) => (
+                            <Link
+                              key={h.id}
+                              href={`/quran/juz/${juz.id}?hizb=${h.orderInJuz}`}
+                              className="flex flex-col rounded-xl border border-gold/30 bg-gold/5 p-2.5 text-right transition hover:border-gold hover:bg-gold/15"
+                            >
+                              <span className="text-[11px] font-extrabold text-gold">
+                                ۞ {h.nameAr} (الحزب {toArabicDigits(h.id)})
+                              </span>
+                              <span className="mt-0.5 truncate font-quran text-xs text-foreground">
+                                «{h.titleAr}»
+                              </span>
+                              <span className="mt-0.5 truncate text-[10px] text-muted-foreground">
+                                {h.startSurahName} ({toArabicDigits(h.startAyah)}) ←{" "}
+                                {h.endSurahName} ({toArabicDigits(h.endAyah)}) •{" "}
+                                {toArabicDigits(h.totalVerses)} آية
+                              </span>
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-3 text-xs">
@@ -827,12 +888,15 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
                       الصفحات: {toArabicDigits(juz.pageStart)} إلى{" "}
                       {toArabicDigits(juz.pageEnd)}
                     </span>
-                    <span className="inline-flex items-center gap-1 font-extrabold text-primary">
-                      <span>قراءة الجزء كاملًا</span>
+                    <Link
+                      href={`/quran/juz/${juz.id}`}
+                      className="inline-flex items-center gap-1 font-extrabold text-primary"
+                    >
+                      <span>قراءة الجزء كاملًا بالحزبين</span>
                       <ChevronLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-1" />
-                    </span>
+                    </Link>
                   </div>
-                </Link>
+                </div>
               );
             })}
           </div>
