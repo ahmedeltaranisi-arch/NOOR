@@ -78,6 +78,17 @@ export const QURAN_RECITERS: ReciterInfo[] = [
     everyAyahFolder: "Nasser_Alqatami_128kbps",
     surahAudioServerUrl: "https://server6.mp3quran.net/qtm",
   },
+  {
+    id: "ahmed-kasib",
+    nameAr: "الشيخ أحمد كاسب",
+    styleAr: "مرتل خاشع ومؤثر - المدرسة المصرية",
+    // Full Mushaf (114 Surahs) is published as whole-Surah recordings on
+    // archive.org (item Ahmad-Kaseb, 001.mp3..114.mp3) and re-served by
+    // mp3quran.net under server16.mp3quran.net/ahmed_kasab.
+    everyAyahFolder: "",
+    surahAudioServerUrl: "https://server16.mp3quran.net/ahmed_kasab",
+    audioAvailability: "surah-only",
+  },
 ];
 
 export const DAILY_AYAT: DailyInspirationContent["ayah"][] = [

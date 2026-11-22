@@ -35,7 +35,10 @@ import {
   getAyahAudioUrl,
   getEffectiveStartSkipSeconds,
   getPreloadWindowIndices,
+  getSurahAudioUrlCandidates,
   getSurahFallbackAudioUrl,
+  isSurahOnlyReciter,
+  resolveAudioModeForReciter,
   HAVE_ENOUGH_DATA_READY_STATE,
   PRELOAD_AHEAD_COUNT,
   shouldSmartCrossTrigger,
@@ -108,7 +111,12 @@ export function SurahReaderClient({
   const [streamCurrentTime, setStreamCurrentTime] = useState<number>(0);
   const [streamDuration, setStreamDuration] = useState<number>(0);
 
-  const audioMode: QuranAudioMode = prefs.audioMode || "gapless-ayah";
+  // Reciters published as whole-Surah files only always use the continuous stream
+  const rawAudioMode: QuranAudioMode = prefs.audioMode || "gapless-ayah";
+  const audioMode: QuranAudioMode = resolveAudioModeForReciter(
+    rawAudioMode,
+    QURAN_RECITERS.find((r) => r.id === prefs.reciterId) || QURAN_RECITERS[0]
+  );
   const smartCrossTriggerEnabled = prefs.smartCrossTriggerEnabled !== false;
   const gaplessTightness = prefs.gaplessTightness || "deep-overlap";
   const activeLeadSeconds =
@@ -188,6 +196,7 @@ export function SurahReaderClient({
 
   const currentReciter =
     QURAN_RECITERS.find((r) => r.id === prefs.reciterId) || QURAN_RECITERS[0];
+  const reciterIsSurahOnly = isSurahOnlyReciter(currentReciter);
 
   const updatePrefs = (partial: Partial<QuranReaderPrefs>) => {
     const updated = { ...prefs, ...partial };
@@ -387,18 +396,21 @@ export function SurahReaderClient({
         const player = getActiveAudio();
         if (streamUrl && player) {
           setUsingSurahFallback(true);
-          if (player.src !== streamUrl) {
-            player.src = streamUrl;
-          }
           player.playbackRate = playbackRate;
           player.volume = isMuted ? 0 : volume;
-          try {
-            await player.play();
-            setIsPlaying(true);
-            syncPreloadWindow(ayahNum, activeReciter, "continuous-surah");
-            return;
-          } catch {
-            // fall through to ayah-by-ayah
+          const candidates = getSurahAudioUrlCandidates(surah.id, activeReciter);
+          for (const candidate of candidates) {
+            try {
+              if (player.src !== candidate) {
+                player.src = candidate;
+              }
+              await player.play();
+              setIsPlaying(true);
+              syncPreloadWindow(ayahNum, activeReciter, "continuous-surah");
+              return;
+            } catch {
+              // try the next candidate (official server → mirror)
+            }
           }
         }
       }
@@ -613,19 +625,16 @@ export function SurahReaderClient({
     if (activeSlotRef.current !== slot) return;
     const player = getActiveAudio();
     if (!usingSurahFallback && player) {
-      const fallbackUrl = getSurahFallbackAudioUrl(
-        surah.id,
-        currentReciter.surahAudioServerUrl
-      );
-      if (fallbackUrl) {
+      const candidates = getSurahAudioUrlCandidates(surah.id, currentReciter);
+      for (const candidate of candidates) {
         try {
           setUsingSurahFallback(true);
-          player.src = fallbackUrl;
+          player.src = candidate;
           await player.play();
           setIsPlaying(true);
           return;
         } catch {
-          // fall through
+          // try the next candidate (official server → mirror)
         }
       }
     }
@@ -789,7 +798,7 @@ export function SurahReaderClient({
           <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-1.5 text-xs font-extrabold text-foreground sm:text-sm">
               <Mic className="h-4 w-4 text-primary" />
-              <span>اختر صوت القارئ لتلاوة سورة {surah.name} (١١ قارئًا معتمدًا):</span>
+              <span>اختر صوت القارئ لتلاوة سورة {surah.name} (١٢ قارئًا معتمدًا):</span>
             </div>
             <span className="text-[11px] font-bold text-primary">
               القارئ الحالي: {currentReciter.nameAr}
@@ -839,6 +848,12 @@ export function SurahReaderClient({
                 <span className="text-xs font-extrabold text-foreground sm:text-sm">
                   نظام التلاوة الصوتية لمنع التقطيع:
                 </span>
+                {reciterIsSurahOnly && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-gold/50 bg-gold/15 px-2.5 py-0.5 text-[11px] font-bold text-gold">
+                    <Radio className="h-3 w-3" />
+                    <span>{currentReciter.nameAr}: التلاوة متاحة سورةً كاملة متصلة</span>
+                  </span>
+                )}
                 {audioMode === "gapless-ayah" ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600/15 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
                     <Zap className="h-3 w-3" />
@@ -867,11 +882,18 @@ export function SurahReaderClient({
                 <button
                   type="button"
                   onClick={() => handleSwitchAudioMode("gapless-ayah")}
+                  disabled={reciterIsSurahOnly}
+                  title={
+                    reciterIsSurahOnly
+                      ? "هذا القارئ متاح بتلاوة السورة كاملة متصلة (لا تتوفر ملفات آية بآية)"
+                      : undefined
+                  }
                   className={cn(
                     "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition",
                     audioMode === "gapless-ayah"
                       ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                    reciterIsSurahOnly && "cursor-not-allowed opacity-40"
                   )}
                 >
                   <Sparkles className="h-3.5 w-3.5" />

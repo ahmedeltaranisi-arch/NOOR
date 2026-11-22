@@ -1,3 +1,5 @@
+import type { QuranAudioMode } from "@/types";
+
 /**
  * Default lead time (in seconds) before the end of an Ayah MP3 file
  * to trigger the next preloaded Ayah (380ms = 0.38s) so trailing MP3
@@ -49,13 +51,73 @@ export type GaplessTightnessPreset = "standard-overlap" | "deep-overlap";
 export function getAyahAudioUrl(
   surahId: number,
   ayahNumber: number,
-  everyAyahFolder = "Husary_128kbps"
+  everyAyahFolder = "Husary_128kbps",
+  baseUrlOverride?: string
 ): string {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_QURAN_AUDIO_CDN || "https://everyayah.com/data";
+  const baseUrl = (
+    baseUrlOverride ||
+    process.env.NEXT_PUBLIC_QURAN_AUDIO_CDN ||
+    "https://everyayah.com/data"
+  ).replace(/\/$/, "");
   const sPad = String(surahId).padStart(3, "0");
   const aPad = String(ayahNumber).padStart(3, "0");
   return `${baseUrl}/${everyAyahFolder}/${sPad}${aPad}.mp3`;
+}
+
+/**
+ * Fallback CDN that mirrors the same SSS.mp3 naming for reciters whose
+ * official mp3quran server is unreachable (e.g. الشيخ أحمد كاسب).
+ */
+export const SURAH_AUDIO_FALLBACK_SERVERS: Record<string, string> = {
+  "ahmed-kasib": "https://archive.org/download/Ahmad-Kaseb",
+};
+
+/**
+ * Returns the ordered list of whole-Surah stream URLs to try for a reciter:
+ * the official server first, then any documented mirror.
+ */
+export function getSurahAudioUrlCandidates(
+  surahId: number,
+  reciter?: {
+    id?: string;
+    surahAudioServerUrl?: string;
+  } | null
+): string[] {
+  const urls: string[] = [];
+  const primary = getSurahFallbackAudioUrl(
+    surahId,
+    reciter?.surahAudioServerUrl
+  );
+  if (primary) urls.push(primary);
+  const mirror =
+    reciter?.id ? SURAH_AUDIO_FALLBACK_SERVERS[reciter.id] : undefined;
+  if (mirror) {
+    const mirrorUrl = getSurahFallbackAudioUrl(surahId, mirror);
+    if (!urls.includes(mirrorUrl)) urls.push(mirrorUrl);
+  }
+  return urls;
+}
+
+/**
+ * Reciters published as whole-Surah files only (no verse-by-verse audio)
+ * can never use the per-Ayah gapless engine — they must always stream the
+ * complete Surah and follow verse positions from the timeline instead.
+ */
+export function isSurahOnlyReciter(
+  reciter?: { audioAvailability?: "ayah-and-surah" | "surah-only" } | null
+): boolean {
+  return reciter?.audioAvailability === "surah-only";
+}
+
+/**
+ * Effective playback mode for a reciter: forces the continuous Surah stream
+ * for reciters that have no verse-by-verse audio published.
+ */
+export function resolveAudioModeForReciter(
+  mode: QuranAudioMode,
+  reciter?: { audioAvailability?: "ayah-and-surah" | "surah-only" } | null
+): QuranAudioMode {
+  return isSurahOnlyReciter(reciter) ? "continuous-surah" : mode;
 }
 
 /**

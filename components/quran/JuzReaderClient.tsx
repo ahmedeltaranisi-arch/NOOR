@@ -40,7 +40,10 @@ import {
   getAyahAudioUrl,
   getEffectiveStartSkipSeconds,
   getPreloadWindowIndices,
+  getSurahAudioUrlCandidates,
   getSurahFallbackAudioUrl,
+  isSurahOnlyReciter,
+  resolveAudioModeForReciter,
   HAVE_ENOUGH_DATA_READY_STATE,
   PRELOAD_AHEAD_COUNT,
   shouldSmartCrossTrigger,
@@ -253,7 +256,11 @@ export function JuzReaderClient({
     }
   }, [activeHizbFilter]);
 
-  const audioMode: QuranAudioMode = prefs.audioMode || "gapless-ayah";
+  // Reciters published as whole-Surah files only always use the continuous stream
+  const audioMode: QuranAudioMode = resolveAudioModeForReciter(
+    prefs.audioMode || "gapless-ayah",
+    QURAN_RECITERS.find((r) => r.id === prefs.reciterId) || QURAN_RECITERS[0]
+  );
   const smartCrossTriggerEnabled = prefs.smartCrossTriggerEnabled !== false;
   const gaplessTightness = prefs.gaplessTightness || "deep-overlap";
   const activeLeadSeconds =
@@ -339,6 +346,7 @@ export function JuzReaderClient({
 
   const currentReciter =
     QURAN_RECITERS.find((r) => r.id === prefs.reciterId) || QURAN_RECITERS[0];
+  const reciterIsSurahOnly = isSurahOnlyReciter(currentReciter);
 
   const selectedRef = juzPlaylist[selectedIndex] || juzPlaylist[0];
   const playingRef = juzPlaylist[playingIndex] || juzPlaylist[0];
@@ -397,6 +405,22 @@ export function JuzReaderClient({
           if (nextStreamUrl && standby.src !== nextStreamUrl) {
             standby.preload = "auto";
             standby.src = nextStreamUrl;
+            standby.load();
+          }
+        } else if (
+          reciterIsSurahOnly &&
+          standby &&
+          reciter.surahAudioServerUrl
+        ) {
+          // Whole-Surah-only reciters: the stream contains every verse of the
+          // current Surah, so keep it buffered in standby for instant re-seeks.
+          const currentStreamUrl = getSurahFallbackAudioUrl(
+            curItem.surahId,
+            reciter.surahAudioServerUrl
+          );
+          if (currentStreamUrl && standby.src !== currentStreamUrl) {
+            standby.preload = "auto";
+            standby.src = currentStreamUrl;
             standby.load();
           }
         }
@@ -584,24 +608,47 @@ export function JuzReaderClient({
             activeSlotRef.current = activeSlotRef.current === "A" ? "B" : "A";
           }
           const player = getActiveAudio()!;
-          if (player.src !== streamUrl) {
-            player.src = streamUrl;
+          // For whole-Surah-only reciters every verse of the Surah lives inside
+          // the same stream: if it is already loaded, keep playing it rather
+          // than restarting the Surah from its beginning.
+          const sameStreamAlreadyLoaded =
+            reciterIsSurahOnly &&
+            player.src === streamUrl &&
+            player.readyState >= 1;
+          if (sameStreamAlreadyLoaded && !player.paused) {
+            setIsPlaying(true);
+            syncPreloadWindow(idx, activeReciter, "continuous-surah");
+            const elSame = document.getElementById(
+              `surah-${targetItem.surahId}-ayah-${targetItem.ayahNumber}`
+            );
+            if (elSame) {
+              elSame.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+            return;
           }
           player.playbackRate = playbackRate;
           player.volume = isMuted ? 0 : volume;
-          try {
-            await player.play();
-            setIsPlaying(true);
-            syncPreloadWindow(idx, activeReciter, "continuous-surah");
-            const el = document.getElementById(
-              `surah-${targetItem.surahId}-ayah-${targetItem.ayahNumber}`
-            );
-            if (el) {
-              el.scrollIntoView({ behavior: "smooth", block: "center" });
+          for (const candidate of getSurahAudioUrlCandidates(
+            targetItem.surahId,
+            activeReciter
+          )) {
+            try {
+              if (player.src !== candidate) {
+                player.src = candidate;
+              }
+              await player.play();
+              setIsPlaying(true);
+              syncPreloadWindow(idx, activeReciter, "continuous-surah");
+              const el = document.getElementById(
+                `surah-${targetItem.surahId}-ayah-${targetItem.ayahNumber}`
+              );
+              if (el) {
+                el.scrollIntoView({ behavior: "smooth", block: "center" });
+              }
+              return;
+            } catch {
+              // try the next candidate (official server → mirror)
             }
-            return;
-          } catch {
-            // Fall through to ayah-by-ayah if stream fails
           }
         }
       }
@@ -692,19 +739,20 @@ export function JuzReaderClient({
         }
       } catch {
         // Automatic fallback to Continuous Surah Stream if an individual ayah file is missing
-        const fallbackUrl = getSurahFallbackAudioUrl(
-          targetItem.surahId,
-          activeReciter.surahAudioServerUrl
-        );
-        if (fallbackUrl && player) {
-          try {
-            setUsingSurahFallback(true);
-            player.src = fallbackUrl;
-            await player.play();
-            setIsPlaying(true);
-            return;
-          } catch {
-            // fall through
+        if (player) {
+          for (const candidate of getSurahAudioUrlCandidates(
+            targetItem.surahId,
+            activeReciter
+          )) {
+            try {
+              setUsingSurahFallback(true);
+              player.src = candidate;
+              await player.play();
+              setIsPlaying(true);
+              return;
+            } catch {
+              // try the next candidate (official server → mirror)
+            }
           }
         }
         setIsPlaying(false);
@@ -847,19 +895,18 @@ export function JuzReaderClient({
     if (activeSlotRef.current !== slot) return;
     const player = getActiveAudio();
     if (!usingSurahFallback && playingRef && player) {
-      const fallbackUrl = getSurahFallbackAudioUrl(
+      for (const candidate of getSurahAudioUrlCandidates(
         playingRef.surahId,
-        currentReciter.surahAudioServerUrl
-      );
-      if (fallbackUrl) {
+        currentReciter
+      )) {
         try {
           setUsingSurahFallback(true);
-          player.src = fallbackUrl;
+          player.src = candidate;
           await player.play();
           setIsPlaying(true);
           return;
         } catch {
-          // fall through
+          // try the next candidate (official server → mirror)
         }
       }
     }
@@ -1535,7 +1582,7 @@ export function JuzReaderClient({
           <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-1.5 text-xs font-extrabold text-foreground sm:text-sm">
               <Mic className="h-4 w-4 text-primary" />
-              <span>اختر صوت القارئ لتلاوة {juz.nameAr} (١١ قارئًا معتمدًا):</span>
+              <span>اختر صوت القارئ لتلاوة {juz.nameAr} (١٢ قارئًا معتمدًا):</span>
             </div>
             <span className="text-[11px] font-bold text-primary">
               القارئ الحالي: {currentReciter.nameAr}
@@ -1585,6 +1632,12 @@ export function JuzReaderClient({
                 <span className="text-xs font-extrabold text-foreground sm:text-sm">
                   نظام التلاوة الصوتية لمنع التقطيع:
                 </span>
+                {reciterIsSurahOnly && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-gold/50 bg-gold/15 px-2.5 py-0.5 text-[11px] font-bold text-gold">
+                    <Radio className="h-3 w-3" />
+                    <span>{currentReciter.nameAr}: التلاوة متاحة سورةً كاملة متصلة</span>
+                  </span>
+                )}
                 {audioMode === "gapless-ayah" ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600/15 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
                     <Zap className="h-3 w-3" />
@@ -1613,11 +1666,18 @@ export function JuzReaderClient({
                 <button
                   type="button"
                   onClick={() => handleSwitchAudioMode("gapless-ayah")}
+                  disabled={reciterIsSurahOnly}
+                  title={
+                    reciterIsSurahOnly
+                      ? "هذا القارئ متاح بتلاوة السورة كاملة متصلة (لا تتوفر ملفات آية بآية)"
+                      : undefined
+                  }
                   className={cn(
                     "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition",
                     audioMode === "gapless-ayah"
                       ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                    reciterIsSurahOnly && "cursor-not-allowed opacity-40"
                   )}
                 >
                   <Sparkles className="h-3.5 w-3.5" />

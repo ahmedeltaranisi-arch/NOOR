@@ -664,7 +664,7 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
               <div>
                 <div className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/15 px-3 py-1 text-xs font-extrabold text-gold">
                   <Layers className="h-3.5 w-3.5" />
-                  <span>٣٠ جزءًا كاملًا • القراءة والتلاوة بأصوات ١١ شيخًا</span>
+                  <span>٣٠ جزءًا كاملًا • القراءة والتلاوة بأصوات ١٢ شيخًا</span>
                 </div>
                 <h2 className="mt-2 text-xl font-extrabold text-foreground sm:text-2xl">
                   أجزاء القرآن الكريم (٣٠ جزءًا)
@@ -945,7 +945,7 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
               <div>
                 <div className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/15 px-3 py-1 text-xs font-extrabold text-gold">
                   <BookOpen className="h-3.5 w-3.5" />
-                  <span>الأجزاء الثلاثون • بأصوات ١١ شيخًا معتمدًا</span>
+                  <span>الأجزاء الثلاثون • بأصوات ١٢ شيخًا معتمدًا</span>
                 </div>
                 <h2 className="mt-2 text-xl font-extrabold text-foreground sm:text-2xl">
                   فهرس أجزاء القرآن الكريم (٣٠ جزءًا)
@@ -970,7 +970,7 @@ export function QuranIndexClient({ surahs }: { surahs: SurahMeta[] }) {
             {/* 11 Sheikhs Selector Bar */}
             <div className="rounded-2xl border border-border/80 bg-muted/35 p-3.5">
               <div className="mb-2 text-xs font-extrabold text-foreground">
-                القارئ المختار لتلاوة الأجزاء (١١ قارئًا):
+                القارئ المختار لتلاوة الأجزاء (١٢ قارئًا):
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {QURAN_RECITERS.map((rec) => {
