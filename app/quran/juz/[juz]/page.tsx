@@ -38,7 +38,7 @@ export async function generateMetadata({
 
   return {
     title: `${meta.nameAr} من القرآن الكريم (${meta.titleAr}) — أحزابه وأرباعه بالرسم العثماني`,
-    description: `قراءة ${meta.nameAr} من المصحف الشريف بالرسم العثماني الكامل ${hizbNames} (من سورة ${meta.startSurahName} آية ${meta.startAyah} إلى سورة ${meta.endSurahName} آية ${meta.endAyah} — الصفحات ${meta.pageStart} إلى ${meta.pageEnd}) مع التلاوة بأصوات 11 قارئًا.`,
+    description: `قراءة ${meta.nameAr} من المصحف الشريف بالرسم العثماني الكامل ${hizbNames} (من سورة ${meta.startSurahName} آية ${meta.startAyah} إلى سورة ${meta.endSurahName} آية ${meta.endAyah} — الصفحات ${meta.pageStart} إلى ${meta.pageEnd}) مع التلاوة بأصوات 12 قارئًا.`,
   };
 }
 

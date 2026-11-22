@@ -153,7 +153,7 @@ export default function HomePage() {
       {/* ب-1. قسم شهر رمضان المبارك (الإمساكية للـ ٢٧ محافظة + ختمة الـ ٣٠ جزءًا + الأدعية وجدول الطاعات) */}
       <DashboardRamadanSection />
 
-      {/* ب-2. قسم أجزاء القرآن الكريم (٣٠ جزءًا — القراءة والتلاوة بأصوات ١١ شيخًا) */}
+      {/* ب-2. قسم أجزاء القرآن الكريم (٣٠ جزءًا — القراءة والتلاوة بأصوات ١٢ شيخًا) */}
       <section
         aria-label="أجزاء القرآن الكريم الثلاثون"
         className="rounded-3xl border border-gold/35 bg-card p-4 shadow-soft sm:p-6 md:p-8"
@@ -162,7 +162,7 @@ export default function HomePage() {
           <div>
             <div className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/15 px-3 py-1 text-xs font-extrabold text-gold">
               <Layers className="h-3.5 w-3.5" />
-              <span>الأجزاء الثلاثون • ٦٠ حزبًا و٢٤٠ ربعًا • قراءة وتلاوة بأصوات ١١ قارئًا</span>
+              <span>الأجزاء الثلاثون • ٦٠ حزبًا و٢٤٠ ربعًا • قراءة وتلاوة بأصوات ١٢ قارئًا</span>
             </div>
             <h2 className="mt-2 text-xl font-extrabold text-foreground sm:text-2xl">
               أجزاء القرآن الكريم (٣٠ جزءًا • ٦٠ حزبًا)

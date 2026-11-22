@@ -300,8 +300,15 @@ export interface ReciterInfo {
   id: string;
   nameAr: string;
   styleAr: string;
+  /** Folder on everyayah.com for verse-by-verse (SSSAAA.mp3) recitation. */
   everyAyahFolder: string;
+  /** Base URL on mp3quran.net for whole-Surah (SSS.mp3) continuous recitation. */
   surahAudioServerUrl?: string;
+  /**
+   * "surah-only" reciters have no verse-by-verse audio available: the reader
+   * always streams the whole Surah and follows verse positions via timing.
+   */
+  audioAvailability?: "ayah-and-surah" | "surah-only";
 }
 
 export type AdhkarCategoryId =

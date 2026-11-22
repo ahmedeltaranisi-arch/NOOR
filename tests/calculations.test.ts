@@ -33,7 +33,10 @@ import {
   getAyahAudioUrl,
   getEffectiveStartSkipSeconds,
   getPreloadWindowIndices,
+  getSurahAudioUrlCandidates,
   getSurahFallbackAudioUrl,
+  isSurahOnlyReciter,
+  resolveAudioModeForReciter,
   HAVE_ENOUGH_DATA_READY_STATE,
   PRELOAD_AHEAD_COUNT,
   shouldSmartCrossTrigger,
@@ -401,7 +404,7 @@ describe("4. التقويم الهجري والقرآن الكريم والأذ�
     }
 
     // Verify all 11 requested Sheikhs are present for Juz & Surah recitation
-    expect(QURAN_RECITERS.length).toBe(11);
+    expect(QURAN_RECITERS.length).toBe(12);
     const expectedSheikhs = [
       "الشيخ عبد الباسط عبد الصمد",
       "الشيخ محمد صديق المنشاوي",
@@ -414,6 +417,7 @@ describe("4. التقويم الهجري والقرآن الكريم والأذ�
       "الشيخ أحمد بن علي العجمي",
       "الشيخ فارس عباد",
       "الشيخ ناصر القطامي",
+      "الشيخ أحمد كاسب",
     ];
     for (const sName of expectedSheikhs) {
       expect(QURAN_RECITERS.map((r) => r.nameAr)).toContain(sName);
@@ -493,10 +497,39 @@ describe("4. التقويم الهجري والقرآن الكريم والأذ�
 
     // Every reciter has both EveryAyah folder and continuous Surah stream server URL
     for (const rec of QURAN_RECITERS) {
-      expect(getAyahAudioUrl(1, 1, rec.everyAyahFolder)).toContain("/001001.mp3");
       expect(rec.surahAudioServerUrl).toBeTruthy();
       expect(getSurahFallbackAudioUrl(2, rec.surahAudioServerUrl)).toContain("/002.mp3");
+      if (rec.audioAvailability === "surah-only") {
+        // Whole-Surah only reciters have no verse-by-verse folder
+        expect(isSurahOnlyReciter(rec)).toBe(true);
+        expect(resolveAudioModeForReciter("gapless-ayah", rec)).toBe("continuous-surah");
+      } else {
+        expect(isSurahOnlyReciter(rec)).toBe(false);
+        expect(resolveAudioModeForReciter("gapless-ayah", rec)).toBe("gapless-ayah");
+        expect(getAyahAudioUrl(1, 1, rec.everyAyahFolder)).toContain("/001001.mp3");
+      }
     }
+
+    // الشيخ أحمد كاسب — التلاوة الكاملة للمصحف (١١٤ سورة) من خادمه الرسمي
+    const kasib = QURAN_RECITERS.find((r) => r.id === "ahmed-kasib");
+    expect(kasib).toBeDefined();
+    expect(kasib?.nameAr).toBe("الشيخ أحمد كاسب");
+    expect(kasib?.audioAvailability).toBe("surah-only");
+    expect(getSurahFallbackAudioUrl(1, kasib?.surahAudioServerUrl)).toBe(
+      "https://server16.mp3quran.net/ahmed_kasab/001.mp3"
+    );
+    expect(getSurahFallbackAudioUrl(114, kasib?.surahAudioServerUrl)).toBe(
+      "https://server16.mp3quran.net/ahmed_kasab/114.mp3"
+    );
+    // The mirror is used automatically when the official server is unreachable
+    expect(getSurahAudioUrlCandidates(1, kasib)).toEqual([
+      "https://server16.mp3quran.net/ahmed_kasab/001.mp3",
+      "https://archive.org/download/Ahmad-Kaseb/001.mp3",
+    ]);
+    const husary = QURAN_RECITERS.find((r) => r.id === "husary");
+    expect(getSurahAudioUrlCandidates(1, husary)).toEqual([
+      "https://server13.mp3quran.net/husr/001.mp3",
+    ]);
 
     expect(formatAudioTime(125)).toBe("02:05");
   });
